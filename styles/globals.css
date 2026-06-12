@@ -192,4 +192,3 @@ button:active { transform: scale(0.98); }
 .modal { background: var(--bg); border-radius: 16px 16px 0 0; padding: 20px 16px 32px; width: 100%; max-width: 480px; max-height: 90vh; overflow-y: auto; }
 .modal-handle { width: 36px; height: 4px; background: var(--border2); border-radius: 2px; margin: 0 auto 20px; }
 .modal h2 { font-size: 17px; font-weight: 500; margin-bottom: 16px; }
-</style>
