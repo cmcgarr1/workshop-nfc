@@ -16,7 +16,7 @@ function genId(name) {
 
 export default function ScanPage() {
   const router = useRouter()
-  const { id } = router.query
+  const { id, prefill_name } = router.query
 
   const [status, setStatus] = useState('loading')
   const [item, setItem] = useState(null)
@@ -33,7 +33,14 @@ export default function ScanPage() {
     if (!id) return
     fetch(`/api/items?id=${encodeURIComponent(id)}`)
       .then(r => {
-        if (r.status === 404) { setStatus('new'); setForm(f => ({ ...f, id })); return null }
+        if (r.status === 404) {
+          setStatus('new')
+          // If we arrived here from the new-tag generator page with a name
+          // already chosen, carry it straight into the registration form
+          // instead of making the person type it again.
+          setForm(f => ({ ...f, id, name: prefill_name || f.name }))
+          return null
+        }
         return r.json()
       })
       .then(data => {
@@ -49,7 +56,7 @@ export default function ScanPage() {
         })
       })
       .catch(() => setStatus('error'))
-  }, [id])
+  }, [id, prefill_name])
 
   useEffect(() => {
     if (status === 'new' || view === 'edit' || view === 'move') {
@@ -202,10 +209,13 @@ export default function ScanPage() {
               {form.type === 'container' && (
                 <div className="form-group">
                   <label className="form-label">Parent location</label>
-                  <select value={form.parent_id} onChange={e => setForm(f => ({ ...f, parent_id: e.target.value }))}>
+                  <select
+                    value={form.parent_id}
+                    onChange={e => setForm(f => ({ ...f, parent_id: e.target.value }))}
+                  >
                     <option value="">— unassigned —</option>
-                    {allItems.filter(i => i.type === 'location').map(i => (
-                      <option key={i.id} value={i.id}>{i.name}</option>
+                    {allItems.filter(i => i.type === 'location').map(loc => (
+                      <option key={loc.id} value={loc.id}>{loc.name}</option>
                     ))}
                   </select>
                 </div>
@@ -214,7 +224,7 @@ export default function ScanPage() {
               <div className="form-group">
                 <label className="form-label">Contents / notes</label>
                 <input
-                  placeholder="What's inside? Any useful notes…"
+                  placeholder="What's inside, or any notes…"
                   value={form.notes}
                   onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
                 />

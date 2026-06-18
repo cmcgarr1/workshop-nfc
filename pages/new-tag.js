@@ -5,10 +5,13 @@ import {
   IconNfc, IconTag, IconArrowLeft, IconCheck, IconArrowRight, IconTool
 } from '../lib/icons'
 
-// Same random-suffix approach already used in scan.js's genId(),
-// just without a name to slugify first.
-function genRandomId() {
-  return 'tag-' + Math.random().toString(36).slice(2, 8)
+// Identical to genId() in scan.js, kept in sync so an ID generated here
+// looks/behaves the same as one generated during manual registration.
+function genId(name) {
+  const base = name
+    ? name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 20)
+    : 'tag'
+  return base + '-' + Math.random().toString(36).slice(2, 6)
 }
 
 // Minimal QR rendering with no external dependency: draws into a canvas
@@ -44,20 +47,28 @@ function useQrCode(text) {
 
 export default function NewTagPage() {
   const router = useRouter()
+  const [name, setName] = useState('')
   const [id, setId] = useState('')
   const [copied, setCopied] = useState(false)
   const [origin, setOrigin] = useState('')
 
   useEffect(() => {
     setOrigin(window.location.origin)
-    setId(genRandomId())
+    setId(genId(''))
   }, [])
 
   const url = origin && id ? `${origin}/scan?id=${id}` : ''
   const { canvasRef, ready } = useQrCode(url)
 
   function regenerate() {
-    setId(genRandomId())
+    setId(genId(name))
+    setCopied(false)
+  }
+
+  function handleNameChange(e) {
+    const newName = e.target.value
+    setName(newName)
+    setId(genId(newName))
     setCopied(false)
   }
 
@@ -105,6 +116,16 @@ export default function NewTagPage() {
         </div>
 
         <div className="card" style={{ textAlign: 'center' }}>
+          <div className="form-group" style={{ textAlign: 'left' }}>
+            <label className="form-label">What is this? (optional, but makes the ID readable)</label>
+            <input
+              placeholder="e.g. Red toolbox, North shelf…"
+              value={name}
+              onChange={handleNameChange}
+              style={{ textAlign: 'left' }}
+            />
+          </div>
+
           <div className="section-label" style={{ marginBottom: 14 }}>Scan this with your NFC writer app</div>
 
           <div
@@ -147,7 +168,7 @@ export default function NewTagPage() {
 
           <button
             className="btn-primary save-btn"
-            onClick={() => router.push(`/scan?id=${id}`)}
+            onClick={() => router.push(`/scan?id=${id}${name ? `&prefill_name=${encodeURIComponent(name)}` : ''}`)}
           >
             <IconArrowRight /> I wrote it — scan now
           </button>
