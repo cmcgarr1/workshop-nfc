@@ -108,7 +108,7 @@ export default function InventoryPage() {
           </>
         )}
 
-        <button className="fab" onClick={() => router.push('/scan?id=new-' + Math.random().toString(36).slice(2,7))} aria-label="Add new item">
+        <button className="fab" onClick={() => router.push('/new-tag')} aria-label="Generate new tag">
           <IconPlus />
         </button>
       </div>
