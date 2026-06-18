@@ -5,13 +5,19 @@ import {
   IconNfc, IconTag, IconArrowLeft, IconCheck, IconArrowRight, IconTool
 } from '../lib/icons'
 
-// Identical to genId() in scan.js, kept in sync so an ID generated here
-// looks/behaves the same as one generated during manual registration.
-function genId(name) {
-  const base = name
-    ? name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 20)
-    : 'tag'
-  return base + '-' + Math.random().toString(36).slice(2, 6)
+// Always use the real production domain, regardless of which URL
+// (preview deployment, vercel.app auto-alias, localhost, etc.) the
+// page happens to be opened from. Update this if you ever change domains.
+const PRODUCTION_ORIGIN = 'https://workshop-nfc.vercel.app'
+
+// Slug-only ID, no random suffix — matches the name exactly so the
+// final URL reads as /scan?id=red-toolbox rather than /scan?id=red-toolbox-x7k2.
+function slugify(name) {
+  return name
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
 }
 
 // Minimal QR rendering with no external dependency: draws into a canvas
@@ -50,25 +56,23 @@ export default function NewTagPage() {
   const [name, setName] = useState('')
   const [id, setId] = useState('')
   const [copied, setCopied] = useState(false)
-  const [origin, setOrigin] = useState('')
+  const [existingIds, setExistingIds] = useState([])
 
   useEffect(() => {
-    setOrigin(window.location.origin)
-    setId(genId(''))
+    fetch('/api/items')
+      .then(r => r.json())
+      .then(d => setExistingIds((d.items || []).map(i => i.id)))
+      .catch(() => {})
   }, [])
 
-  const url = origin && id ? `${origin}/scan?id=${id}` : ''
+  const url = id ? `${PRODUCTION_ORIGIN}/scan?id=${id}` : ''
   const { canvasRef, ready } = useQrCode(url)
-
-  function regenerate() {
-    setId(genId(name))
-    setCopied(false)
-  }
+  const isDuplicate = id && existingIds.includes(id)
 
   function handleNameChange(e) {
     const newName = e.target.value
     setName(newName)
-    setId(genId(newName))
+    setId(slugify(newName))
     setCopied(false)
   }
 
@@ -117,13 +121,18 @@ export default function NewTagPage() {
 
         <div className="card" style={{ textAlign: 'center' }}>
           <div className="form-group" style={{ textAlign: 'left' }}>
-            <label className="form-label">What is this? (optional, but makes the ID readable)</label>
+            <label className="form-label">What is this?</label>
             <input
               placeholder="e.g. Red toolbox, North shelf…"
               value={name}
               onChange={handleNameChange}
               style={{ textAlign: 'left' }}
             />
+            {isDuplicate && (
+              <div className="form-hint" style={{ color: '#A32D2D' }}>
+                An item named "{name}" already exists — pick a different name
+              </div>
+            )}
           </div>
 
           <div className="section-label" style={{ marginBottom: 14 }}>Scan this with your NFC writer app</div>
@@ -140,14 +149,14 @@ export default function NewTagPage() {
               alignItems: 'center'
             }}
           >
-            <canvas ref={canvasRef} width={220} height={220} style={{ opacity: ready ? 1 : 0 }} />
+            <canvas ref={canvasRef} width={220} height={220} style={{ opacity: ready && id ? 1 : 0 }} />
           </div>
 
           <div className="form-group" style={{ textAlign: 'left' }}>
             <label className="form-label">URL to write</label>
             <div className="id-row">
-              <input className="prefilled" value={url} readOnly />
-              <button className="btn-ghost" onClick={copyUrl}>
+              <input className="prefilled" value={url || 'Type a name above first…'} readOnly />
+              <button className="btn-ghost" onClick={copyUrl} disabled={!id}>
                 {copied ? 'Copied' : 'Copy'}
               </button>
             </div>
@@ -156,19 +165,10 @@ export default function NewTagPage() {
             </div>
           </div>
 
-          <div className="form-group" style={{ textAlign: 'left' }}>
-            <label className="form-label">Tag ID</label>
-            <div className="id-row">
-              <input className="prefilled" value={id} readOnly style={{ fontFamily: 'monospace' }} />
-              <button className="btn-ghost" onClick={regenerate}>
-                New ID
-              </button>
-            </div>
-          </div>
-
           <button
             className="btn-primary save-btn"
-            onClick={() => router.push(`/scan?id=${id}${name ? `&prefill_name=${encodeURIComponent(name)}` : ''}`)}
+            disabled={!id || isDuplicate}
+            onClick={() => router.push(`/scan?id=${id}&prefill_name=${encodeURIComponent(name)}`)}
           >
             <IconArrowRight /> I wrote it — scan now
           </button>
