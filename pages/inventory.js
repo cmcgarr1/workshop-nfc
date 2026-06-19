@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/router'
 import Head from 'next/head'
-import { IconPackage, IconLayers, IconArrowRight, IconPlus, IconTool, IconList } from '../lib/icons'
+import { IconPackage, IconLayers, IconArrowRight, IconPlus, IconTool } from '../lib/icons'
 
 export default function InventoryPage() {
   const router = useRouter()
@@ -37,17 +37,23 @@ export default function InventoryPage() {
   return (
     <>
       <Head>
-        <title>Inventory · Workshop NFC</title>
+        <title>Shop hierarchy · Workshop NFC</title>
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
       </Head>
 
       <div className="page">
         <div className="topbar">
           <div className="topbar-logo"><IconTool /></div>
-          <h1>Inventory</h1>
-          <span className="topbar-sub" style={{ cursor: 'pointer' }} onClick={() => router.push('/contents')}>
-            Contents →
-          </span>
+          <h1>Workshop</h1>
+        </div>
+
+        <div className="filter-row">
+          <button className="filter-btn active" style={{ flex: 1, textAlign: 'center' }}>
+            Shop hierarchy
+          </button>
+          <button className="filter-btn" style={{ flex: 1, textAlign: 'center' }} onClick={() => router.push('/contents')}>
+            Tools
+          </button>
         </div>
 
         {loading ? (
@@ -111,14 +117,6 @@ export default function InventoryPage() {
           </>
         )}
 
-        <button
-          className="fab"
-          style={{ right: 88, background: 'var(--bg)', color: 'var(--text)', border: '0.5px solid var(--border2)' }}
-          onClick={() => router.push('/contents')}
-          aria-label="View all contents"
-        >
-          <IconList />
-        </button>
         <button className="fab" onClick={() => router.push('/new-tag')} aria-label="Generate new tag">
           <IconPlus />
         </button>

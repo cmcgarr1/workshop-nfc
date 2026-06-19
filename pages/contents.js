@@ -43,17 +43,23 @@ export default function ContentsPage() {
   return (
     <>
       <Head>
-        <title>Contents · Workshop NFC</title>
+        <title>Tools · Workshop NFC</title>
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
       </Head>
 
       <div className="page" style={{ maxWidth: 900 }}>
         <div className="topbar">
           <div className="topbar-logo"><IconTool /></div>
-          <h1>All contents</h1>
-          <span className="topbar-sub" style={{ cursor: 'pointer' }} onClick={() => router.push('/inventory')}>
-            Inventory →
-          </span>
+          <h1>Workshop</h1>
+        </div>
+
+        <div className="filter-row">
+          <button className="filter-btn" style={{ flex: 1, textAlign: 'center' }} onClick={() => router.push('/inventory')}>
+            Shop hierarchy
+          </button>
+          <button className="filter-btn active" style={{ flex: 1, textAlign: 'center' }}>
+            Tools
+          </button>
         </div>
 
         <input

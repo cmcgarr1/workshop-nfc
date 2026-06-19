@@ -195,7 +195,7 @@ export default function ScanPage() {
           </div>
           <h1>Workshop</h1>
           <span className="topbar-sub" style={{ cursor: 'pointer' }} onClick={() => router.push('/inventory')}>
-            Inventory →
+            Home →
           </span>
         </div>
 
