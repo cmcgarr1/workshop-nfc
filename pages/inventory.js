@@ -198,7 +198,7 @@ export default function InventoryPage() {
           </div>
         )}
 
-        {node.children.map(child => <TreeRow key={child.id} node={child} depth={depth + 1} />)}
+        {isOpen && node.children.map(child => <TreeRow key={child.id} node={child} depth={depth + 1} />)}
       </>
     )
   }
