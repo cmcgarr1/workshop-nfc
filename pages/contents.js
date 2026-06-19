@@ -1,7 +1,28 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/router'
 import Head from 'next/head'
-import { IconTool, IconArrowLeft, IconPlus, IconTrash, IconEdit, IconCheck } from '../lib/icons'
+import { IconTool, IconArrowLeft, IconPlus, IconCheck } from '../lib/icons'
+
+function IconPencil() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+      <path d="M15 5l4 4" />
+    </svg>
+  )
+}
+
+function IconTrashCan() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 6h18" />
+      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+      <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+      <line x1="10" y1="11" x2="10" y2="17" />
+      <line x1="14" y1="11" x2="14" y2="17" />
+    </svg>
+  )
+}
 
 const emptyForm = { item_name: '', description: '', category: '', date_acquired: '', parent_item_id: '' }
 
@@ -189,10 +210,10 @@ export default function ContentsPage() {
                     </td>
                     <td style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>
                       <button className="btn-ghost" style={{ padding: '4px 8px' }} onClick={() => openEditForm(row)}>
-                        <IconEdit />
+                        <IconPencil />
                       </button>
                       <button className="btn-ghost" style={{ padding: '4px 8px' }} onClick={() => deleteRow(row.id)}>
-                        <IconTrash />
+                        <IconTrashCan />
                       </button>
                     </td>
                   </tr>
