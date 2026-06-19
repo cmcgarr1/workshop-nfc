@@ -34,6 +34,53 @@ export default function InventoryPage() {
     return items.filter(i => i.parent_id === id).length
   }
 
+  // Builds a nested tree: top-level items (no parent) first, each with its
+  // children attached recursively, sorted alphabetically at every level so
+  // the hierarchy reads top-to-bottom the way you'd actually walk the shop.
+  function buildTree() {
+    const byParent = {}
+    items.forEach(i => {
+      const key = i.parent_id || '__root__'
+      if (!byParent[key]) byParent[key] = []
+      byParent[key].push(i)
+    })
+    Object.values(byParent).forEach(list => list.sort((a, b) => a.name.localeCompare(b.name)))
+
+    function attach(item) {
+      return { ...item, children: (byParent[item.id] || []).map(attach) }
+    }
+    return (byParent['__root__'] || []).map(attach)
+  }
+
+  function TreeRow({ node, depth }) {
+    const childCount = node.children.length
+    return (
+      <>
+        <div
+          className="inv-item"
+          style={{ marginLeft: depth * 18 }}
+          onClick={() => router.push(`/scan?id=${node.id}`)}
+        >
+          <div className={`inv-item-icon ${node.type === 'location' ? 'loc' : 'con'}`}>
+            {node.type === 'location' ? <IconLayers /> : <IconPackage />}
+          </div>
+          <div>
+            <div className="inv-item-name">{node.name}</div>
+            <div className="inv-item-sub">
+              {childCount > 0 ? `${childCount} item${childCount !== 1 ? 's' : ''} inside` : (node.type === 'container' ? 'Empty' : 'Nothing inside')}
+              {node.notes ? ` · ${node.notes}` : ''}
+            </div>
+          </div>
+          <div className="inv-item-arrow"><IconArrowRight /></div>
+        </div>
+        {node.children.map(child => <TreeRow key={child.id} node={child} depth={depth + 1} />)}
+      </>
+    )
+  }
+
+  const tree = buildTree()
+  const isSearching = search.trim().length > 0
+
   return (
     <>
       <Head>
@@ -76,44 +123,59 @@ export default function InventoryPage() {
             </div>
 
             <input
-              placeholder="Search by name or contents…"
+              placeholder="Search to filter, or browse the hierarchy below…"
               value={search}
               onChange={e => setSearch(e.target.value)}
               style={{ marginBottom: 12 }}
             />
 
-            <div className="filter-row">
-              {['all', 'location', 'container'].map(f => (
-                <button key={f} className={`filter-btn${filter === f ? ' active' : ''}`} onClick={() => setFilter(f)}>
-                  {f === 'all' ? 'All' : f === 'location' ? 'Locations' : 'Containers'}
-                </button>
-              ))}
-            </div>
-
-            {filtered.length === 0 && (
-              <div style={{ textAlign: 'center', color: 'var(--text3)', padding: '40px 0', fontSize: 14 }}>
-                No items found
+            {isSearching && (
+              <div className="filter-row">
+                {['all', 'location', 'container'].map(f => (
+                  <button key={f} className={`filter-btn${filter === f ? ' active' : ''}`} onClick={() => setFilter(f)}>
+                    {f === 'all' ? 'All' : f === 'location' ? 'Locations' : 'Containers'}
+                  </button>
+                ))}
               </div>
             )}
 
-            {filtered.map(item => (
-              <div key={item.id} className="inv-item" onClick={() => router.push(`/scan?id=${item.id}`)}>
-                <div className={`inv-item-icon ${item.type === 'location' ? 'loc' : 'con'}`}>
-                  {item.type === 'location' ? <IconLayers /> : <IconPackage />}
-                </div>
-                <div>
-                  <div className="inv-item-name">{item.name}</div>
-                  <div className="inv-item-sub">
-                    {item.type === 'container'
-                      ? getParentName(item.parent_id)
-                      : `${getChildCount(item.id)} item${getChildCount(item.id) !== 1 ? 's' : ''} inside`
-                    }
-                    {item.notes ? ` · ${item.notes}` : ''}
+            {isSearching ? (
+              <>
+                {filtered.length === 0 && (
+                  <div style={{ textAlign: 'center', color: 'var(--text3)', padding: '40px 0', fontSize: 14 }}>
+                    No items found
                   </div>
-                </div>
-                <div className="inv-item-arrow"><IconArrowRight /></div>
-              </div>
-            ))}
+                )}
+
+                {filtered.map(item => (
+                  <div key={item.id} className="inv-item" onClick={() => router.push(`/scan?id=${item.id}`)}>
+                    <div className={`inv-item-icon ${item.type === 'location' ? 'loc' : 'con'}`}>
+                      {item.type === 'location' ? <IconLayers /> : <IconPackage />}
+                    </div>
+                    <div>
+                      <div className="inv-item-name">{item.name}</div>
+                      <div className="inv-item-sub">
+                        {item.type === 'container'
+                          ? getParentName(item.parent_id)
+                          : `${getChildCount(item.id)} item${getChildCount(item.id) !== 1 ? 's' : ''} inside`
+                        }
+                        {item.notes ? ` · ${item.notes}` : ''}
+                      </div>
+                    </div>
+                    <div className="inv-item-arrow"><IconArrowRight /></div>
+                  </div>
+                ))}
+              </>
+            ) : (
+              <>
+                {tree.length === 0 && (
+                  <div style={{ textAlign: 'center', color: 'var(--text3)', padding: '40px 0', fontSize: 14 }}>
+                    No items yet
+                  </div>
+                )}
+                {tree.map(node => <TreeRow key={node.id} node={node} depth={0} />)}
+              </>
+            )}
           </>
         )}
 
