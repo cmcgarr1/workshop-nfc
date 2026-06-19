@@ -3,6 +3,14 @@ import { useRouter } from 'next/router'
 import Head from 'next/head'
 import { IconTool, IconArrowLeft, IconPlus, IconTrash } from '../lib/icons'
 
+// This page fetches live data from /api/contents on mount. Next.js tries
+// to statically pre-render pages at build time by default, but there's no
+// live server to call during the build step — forcing this page to render
+// fresh on every request (server-side) instead avoids that build error.
+export async function getServerSideProps() {
+  return { props: {} }
+}
+
 export default function ContentsPage() {
   const router = useRouter()
   const [contents, setContents] = useState([])
