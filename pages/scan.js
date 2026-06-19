@@ -32,7 +32,7 @@ export default function ScanPage() {
   const [contents, setContents] = useState([])
   const [categorySuggestions, setCategorySuggestions] = useState([])
   const [showAddContent, setShowAddContent] = useState(false)
-  const [contentForm, setContentForm] = useState({ item_name: '', description: '', category: '', date_acquired: '' })
+  const [contentForm, setContentForm] = useState({ item_name: '', description: '', category: '', date_acquired: '', is_category: false })
   const [addingContent, setAddingContent] = useState(false)
 
   function loadContents(parentId) {
@@ -134,24 +134,32 @@ export default function ScanPage() {
   }
 
   async function addContentItem() {
-    const isBulk = !contentForm.item_name.trim()
-    if (isBulk && !contentForm.category.trim()) {
-      return alert('Enter an item name, or at least a category for a bulk entry')
+    const payload = contentForm.is_category
+      ? { category: contentForm.item_name.trim() }
+      : { ...contentForm }
+
+    if (contentForm.is_category && !payload.category) {
+      return alert('Please enter a category name')
     }
+    if (!contentForm.is_category && !contentForm.item_name.trim() && !contentForm.category.trim()) {
+      return alert('Enter an item name, or check Category and enter a category name')
+    }
+
     setAddingContent(true)
     const r = await fetch('/api/contents', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...contentForm, parent_item_id: item.id })
+      body: JSON.stringify({ ...payload, parent_item_id: item.id })
     })
     const data = await r.json()
     setAddingContent(false)
     if (!r.ok) return alert(data.error)
-    setContentForm({ item_name: '', description: '', category: '', date_acquired: '' })
+    setContentForm({ item_name: '', description: '', category: '', date_acquired: '', is_category: false })
     setShowAddContent(false)
     loadContents(item.id)
-    if (contentForm.category && !categorySuggestions.includes(contentForm.category)) {
-      setCategorySuggestions(c => [...c, contentForm.category].sort())
+    const newCategory = payload.category || contentForm.category
+    if (newCategory && !categorySuggestions.includes(newCategory)) {
+      setCategorySuggestions(c => [...c, newCategory].sort())
     }
     showToast('Item added!')
   }
@@ -355,42 +363,70 @@ export default function ScanPage() {
 
                   {showAddContent && (
                     <div style={{ background: 'var(--bg2)', borderRadius: 'var(--radius-sm)', padding: 12, marginBottom: 12 }}>
-                      <div className="form-group">
-                        <label className="form-label">Item name</label>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, fontSize: 13, cursor: 'pointer' }}>
                         <input
-                          placeholder="e.g. Phillips screwdriver"
-                          value={contentForm.item_name}
-                          onChange={e => setContentForm(f => ({ ...f, item_name: e.target.value }))}
+                          type="checkbox"
+                          style={{ width: 'auto' }}
+                          checked={contentForm.is_category}
+                          onChange={e => setContentForm(f => ({ ...f, is_category: e.target.checked }))}
                         />
-                      </div>
-                      <div className="form-group">
-                        <label className="form-label">Description</label>
-                        <input
-                          placeholder="Optional details"
-                          value={contentForm.description}
-                          onChange={e => setContentForm(f => ({ ...f, description: e.target.value }))}
-                        />
-                      </div>
-                      <div className="form-group">
-                        <label className="form-label">Category</label>
-                        <input
-                          placeholder="Type to see suggestions…"
-                          list="category-suggestions"
-                          value={contentForm.category}
-                          onChange={e => setContentForm(f => ({ ...f, category: e.target.value }))}
-                        />
-                        <datalist id="category-suggestions">
-                          {categorySuggestions.map(c => <option key={c} value={c} />)}
-                        </datalist>
-                      </div>
-                      <div className="form-group">
-                        <label className="form-label">Date acquired</label>
-                        <input
-                          type="date"
-                          value={contentForm.date_acquired}
-                          onChange={e => setContentForm(f => ({ ...f, date_acquired: e.target.value }))}
-                        />
-                      </div>
+                        Category <span style={{ color: 'var(--text3)' }}>(no individual item, just a label like "Hand tools")</span>
+                      </label>
+
+                      {contentForm.is_category ? (
+                        <div className="form-group">
+                          <label className="form-label">Category name</label>
+                          <input
+                            placeholder="e.g. Hand tools"
+                            list="category-suggestions"
+                            value={contentForm.item_name}
+                            onChange={e => setContentForm(f => ({ ...f, item_name: e.target.value }))}
+                          />
+                          <datalist id="category-suggestions">
+                            {categorySuggestions.map(c => <option key={c} value={c} />)}
+                          </datalist>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="form-group">
+                            <label className="form-label">Item name</label>
+                            <input
+                              placeholder="e.g. Phillips screwdriver"
+                              value={contentForm.item_name}
+                              onChange={e => setContentForm(f => ({ ...f, item_name: e.target.value }))}
+                            />
+                          </div>
+                          <div className="form-group">
+                            <label className="form-label">Description</label>
+                            <input
+                              placeholder="Optional details"
+                              value={contentForm.description}
+                              onChange={e => setContentForm(f => ({ ...f, description: e.target.value }))}
+                            />
+                          </div>
+                          <div className="form-group">
+                            <label className="form-label">Category</label>
+                            <input
+                              placeholder="Type to see suggestions…"
+                              list="category-suggestions"
+                              value={contentForm.category}
+                              onChange={e => setContentForm(f => ({ ...f, category: e.target.value }))}
+                            />
+                            <datalist id="category-suggestions">
+                              {categorySuggestions.map(c => <option key={c} value={c} />)}
+                            </datalist>
+                          </div>
+                          <div className="form-group">
+                            <label className="form-label">Date acquired</label>
+                            <input
+                              type="date"
+                              value={contentForm.date_acquired}
+                              onChange={e => setContentForm(f => ({ ...f, date_acquired: e.target.value }))}
+                            />
+                          </div>
+                        </>
+                      )}
+
                       <button className="btn-primary save-btn" onClick={addContentItem} disabled={addingContent}>
                         <IconCheck /> {addingContent ? 'Adding…' : 'Add to contents'}
                       </button>
@@ -414,10 +450,12 @@ export default function ScanPage() {
                         <tbody>
                           {contents.map(row => (
                             <tr key={row.id} style={{ borderBottom: '0.5px solid var(--border)' }}>
-                              <td style={{ padding: '6px 8px', fontWeight: 500 }}>{row.item_name}</td>
+                              <td style={{ padding: '6px 8px', fontWeight: 500 }}>
+                                {row.item_name || <span style={{ color: 'var(--text3)', fontStyle: 'italic' }}>—</span>}
+                              </td>
                               <td style={{ padding: '6px 8px', color: 'var(--text2)' }}>{row.description || '—'}</td>
                               <td style={{ padding: '6px 8px' }}>
-                                {row.category ? <span className="chip purple">{row.category}</span> : '—'}
+                                {row.category ? <span className="chip purple">{row.category}{!row.item_name ? ' (category)' : ''}</span> : '—'}
                               </td>
                               <td style={{ padding: '6px 8px', whiteSpace: 'nowrap' }}>
                                 {new Date(row.date_added).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
@@ -437,88 +475,6 @@ export default function ScanPage() {
                     </div>
                   )}
                 </div>
-
-                {item.type === 'container' && (
-                  <div className="card">
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                      <div className="section-label" style={{ marginBottom: 0 }}>Contents ({contents.length})</div>
-                      <button className="btn-ghost" style={{ padding: '5px 10px', fontSize: 12 }} onClick={() => setShowAddContent(s => !s)}>
-                        <IconPlus /> Add
-                      </button>
-                    </div>
-
-                    {showAddContent && (
-                      <div style={{ background: 'var(--bg2)', borderRadius: 'var(--radius-sm)', padding: 12, marginBottom: 12 }}>
-                        <div className="form-group">
-                          <label className="form-label">Item name (leave blank for a bulk/category entry)</label>
-                          <input
-                            placeholder="e.g. Phillips screwdriver"
-                            value={contentForm.item_name}
-                            onChange={e => setContentForm(f => ({ ...f, item_name: e.target.value }))}
-                          />
-                        </div>
-                        <div className="form-group">
-                          <label className="form-label">Category</label>
-                          <input
-                            placeholder="e.g. Hand tools"
-                            value={contentForm.category}
-                            onChange={e => setContentForm(f => ({ ...f, category: e.target.value }))}
-                            list="category-suggestions"
-                          />
-                          <datalist id="category-suggestions">
-                            {categorySuggestions.map(c => <option key={c} value={c} />)}
-                          </datalist>
-                        </div>
-                        <div className="form-group">
-                          <label className="form-label">Description</label>
-                          <input
-                            placeholder="Optional notes"
-                            value={contentForm.description}
-                            onChange={e => setContentForm(f => ({ ...f, description: e.target.value }))}
-                          />
-                        </div>
-                        <div className="form-group">
-                          <label className="form-label">Date acquired</label>
-                          <input
-                            type="date"
-                            value={contentForm.date_acquired}
-                            onChange={e => setContentForm(f => ({ ...f, date_acquired: e.target.value }))}
-                          />
-                        </div>
-                        <button className="btn-primary save-btn" onClick={addContentItem} disabled={addingContent}>
-                          <IconCheck /> {addingContent ? 'Adding…' : 'Add to contents'}
-                        </button>
-                      </div>
-                    )}
-
-                    {contents.length === 0 ? (
-                      <div style={{ textAlign: 'center', color: 'var(--text3)', fontSize: 13, padding: '12px 0' }}>
-                        Nothing logged yet
-                      </div>
-                    ) : (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                        {contents.map(row => (
-                          <div key={row.id} className="meta-row" style={{ borderTop: 'none', alignItems: 'flex-start' }}>
-                            <div style={{ flex: 1 }}>
-                              {row.item_name ? (
-                                <>
-                                  <span style={{ fontWeight: 500 }}>{row.item_name}</span>
-                                  {row.category && <span className="chip purple" style={{ marginLeft: 6 }}>{row.category}</span>}
-                                  {row.description && <div style={{ fontSize: 12, color: 'var(--text2)', marginTop: 2 }}>{row.description}</div>}
-                                </>
-                              ) : (
-                                <span className="chip purple">📦 {row.category} (bulk)</span>
-                              )}
-                            </div>
-                            <button className="btn-ghost" style={{ padding: '3px 7px' }} onClick={() => deleteContentItem(row.id)}>
-                              <IconTrash />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
 
                 {children.length > 0 && (
                   <div className="card">
