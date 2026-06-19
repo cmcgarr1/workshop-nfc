@@ -64,6 +64,8 @@ export default function InventoryPage() {
       </svg>
     )
   }
+
+  function getParentName(parentId) {
     if (!parentId) return 'Unassigned'
     return items.find(i => i.id === parentId)?.name || parentId
   }
