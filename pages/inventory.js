@@ -29,23 +29,37 @@ export default function InventoryPage() {
   const [contentsCache, setContentsCache] = useState({})
   const [contentsLoading, setContentsLoading] = useState({})
 
-  function toggleExpand(id) {
+  function collectIds(node) {
+    let ids = [node.id]
+    node.children.forEach(c => { ids = ids.concat(collectIds(c)) })
+    return ids
+  }
+
+  function toggleExpand(node) {
+    const id = node.id
     setExpanded(prev => {
       const next = new Set(prev)
       if (next.has(id)) {
         next.delete(id)
       } else {
         next.add(id)
-        if (!contentsCache[id]) {
-          setContentsLoading(l => ({ ...l, [id]: true }))
-          fetch(`/api/contents?parent_item_id=${encodeURIComponent(id)}`)
-            .then(r => r.json())
-            .then(d => {
-              setContentsCache(c => ({ ...c, [id]: d.contents || [] }))
-              setContentsLoading(l => ({ ...l, [id]: false }))
-            })
-            .catch(() => setContentsLoading(l => ({ ...l, [id]: false })))
-        }
+        // Fetch contents for this node AND every descendant, since an open
+        // node shows its own items plus anything from closed descendants
+        // (a descendant that's separately opened shows its own items itself,
+        // so it's excluded from the parent's list to avoid double-display).
+        const idsNeeded = collectIds(node)
+        idsNeeded.forEach(needId => {
+          if (!contentsCache[needId] && !contentsLoading[needId]) {
+            setContentsLoading(l => ({ ...l, [needId]: true }))
+            fetch(`/api/contents?parent_item_id=${encodeURIComponent(needId)}`)
+              .then(r => r.json())
+              .then(d => {
+                setContentsCache(c => ({ ...c, [needId]: d.contents || [] }))
+                setContentsLoading(l => ({ ...l, [needId]: false }))
+              })
+              .catch(() => setContentsLoading(l => ({ ...l, [needId]: false })))
+          }
+        })
       }
       return next
     })
@@ -92,11 +106,30 @@ export default function InventoryPage() {
     return (byParent['__root__'] || []).map(attach)
   }
 
+  // Gathers the contents to show under an open node: its own logged items,
+  // plus anything from closed descendants (recursively) — but stops
+  // descending into any descendant that's separately open, since that
+  // descendant displays its own items in its own dropdown instead.
+  function aggregatedContents(node) {
+    let list = contentsCache[node.id] || []
+    node.children.forEach(child => {
+      if (!expanded.has(child.id)) {
+        list = list.concat(aggregatedContents(child))
+      }
+    })
+    return list
+  }
+
+  function isStillLoading(node) {
+    if (contentsLoading[node.id]) return true
+    return node.children.some(c => !expanded.has(c.id) && isStillLoading(c))
+  }
+
   function TreeRow({ node, depth }) {
     const childCount = node.children.length
     const isOpen = expanded.has(node.id)
-    const nodeContents = contentsCache[node.id] || []
-    const isLoadingContents = contentsLoading[node.id]
+    const nodeContents = isOpen ? aggregatedContents(node) : []
+    const isLoadingContents = isOpen && isStillLoading(node)
 
     return (
       <>
@@ -104,7 +137,7 @@ export default function InventoryPage() {
           <button
             className="btn-ghost"
             style={{ padding: 6, flexShrink: 0 }}
-            onClick={e => { e.stopPropagation(); toggleExpand(node.id) }}
+            onClick={e => { e.stopPropagation(); toggleExpand(node) }}
             aria-label={isOpen ? 'Hide contents' : 'Show contents'}
           >
             <EyeIcon open={isOpen} />
