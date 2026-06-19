@@ -4,7 +4,7 @@ import Head from 'next/head'
 import {
   IconPackage, IconLayers, IconCheck, IconNfc, IconEdit,
   IconMove, IconList, IconArrowLeft, IconTag, IconNote,
-  IconSitemap, IconTrash, IconTool, IconArrowRight
+  IconSitemap, IconTrash, IconTool, IconArrowRight, IconPlus
 } from '../lib/icons'
 
 function genId(name) {
@@ -28,6 +28,18 @@ export default function ScanPage() {
   const [form, setForm] = useState({ name: '', type: 'container', id: '', parent_id: '', notes: '' })
   const [editForm, setEditForm] = useState({})
   const [saving, setSaving] = useState(false)
+
+  const [contents, setContents] = useState([])
+  const [categorySuggestions, setCategorySuggestions] = useState([])
+  const [showAddContent, setShowAddContent] = useState(false)
+  const [contentForm, setContentForm] = useState({ item_name: '', description: '', category: '', date_acquired: '' })
+  const [addingContent, setAddingContent] = useState(false)
+
+  function loadContents(parentId) {
+    fetch(`/api/contents?parent_item_id=${encodeURIComponent(parentId)}`)
+      .then(r => r.json())
+      .then(d => setContents(d.contents || []))
+  }
 
   useEffect(() => {
     if (!id) return
@@ -54,6 +66,10 @@ export default function ScanPage() {
           parent_id: data.item.parent_id || '',
           notes: data.item.notes || ''
         })
+        loadContents(data.item.id)
+        fetch('/api/contents?categories_only=1')
+          .then(r => r.json())
+          .then(d => setCategorySuggestions(d.categories || []))
       })
       .catch(() => setStatus('error'))
   }, [id, prefill_name])
@@ -115,6 +131,35 @@ export default function ScanPage() {
     setItem(data.item)
     setView('main')
     showToast('Moved!')
+  }
+
+  async function addContentItem() {
+    const isBulk = !contentForm.item_name.trim()
+    if (isBulk && !contentForm.category.trim()) {
+      return alert('Enter an item name, or at least a category for a bulk entry')
+    }
+    setAddingContent(true)
+    const r = await fetch('/api/contents', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...contentForm, parent_item_id: item.id })
+    })
+    const data = await r.json()
+    setAddingContent(false)
+    if (!r.ok) return alert(data.error)
+    setContentForm({ item_name: '', description: '', category: '', date_acquired: '' })
+    setShowAddContent(false)
+    loadContents(item.id)
+    if (contentForm.category && !categorySuggestions.includes(contentForm.category)) {
+      setCategorySuggestions(c => [...c, contentForm.category].sort())
+    }
+    showToast('Item added!')
+  }
+
+  async function deleteContentItem(id) {
+    if (!confirm('Remove this item from the contents list?')) return
+    await fetch(`/api/contents?id=${id}`, { method: 'DELETE' })
+    loadContents(item.id)
   }
 
   async function deleteItem() {
@@ -293,6 +338,187 @@ export default function ScanPage() {
                     </div>
                   </div>
                 </div>
+
+                <div className="card">
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                    <div className="section-label" style={{ marginBottom: 0 }}>
+                      Contents log ({contents.length})
+                    </div>
+                    <button
+                      className="btn-ghost"
+                      style={{ padding: '5px 10px', fontSize: 12, display: 'flex', alignItems: 'center', gap: 5 }}
+                      onClick={() => setShowAddContent(s => !s)}
+                    >
+                      <IconPlus /> Add item
+                    </button>
+                  </div>
+
+                  {showAddContent && (
+                    <div style={{ background: 'var(--bg2)', borderRadius: 'var(--radius-sm)', padding: 12, marginBottom: 12 }}>
+                      <div className="form-group">
+                        <label className="form-label">Item name</label>
+                        <input
+                          placeholder="e.g. Phillips screwdriver"
+                          value={contentForm.item_name}
+                          onChange={e => setContentForm(f => ({ ...f, item_name: e.target.value }))}
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label">Description</label>
+                        <input
+                          placeholder="Optional details"
+                          value={contentForm.description}
+                          onChange={e => setContentForm(f => ({ ...f, description: e.target.value }))}
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label">Category</label>
+                        <input
+                          placeholder="Type to see suggestions…"
+                          list="category-suggestions"
+                          value={contentForm.category}
+                          onChange={e => setContentForm(f => ({ ...f, category: e.target.value }))}
+                        />
+                        <datalist id="category-suggestions">
+                          {categorySuggestions.map(c => <option key={c} value={c} />)}
+                        </datalist>
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label">Date acquired</label>
+                        <input
+                          type="date"
+                          value={contentForm.date_acquired}
+                          onChange={e => setContentForm(f => ({ ...f, date_acquired: e.target.value }))}
+                        />
+                      </div>
+                      <button className="btn-primary save-btn" onClick={addContentItem} disabled={addingContent}>
+                        <IconCheck /> {addingContent ? 'Adding…' : 'Add to contents'}
+                      </button>
+                    </div>
+                  )}
+
+                  {contents.length === 0 ? (
+                    <div style={{ textAlign: 'center', color: 'var(--text3)', fontSize: 13, padding: '12px 0' }}>
+                      No items logged yet
+                    </div>
+                  ) : (
+                    <div style={{ overflowX: 'auto' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                        <thead>
+                          <tr style={{ borderBottom: '1px solid var(--border2)', textAlign: 'left' }}>
+                            {['Item', 'Description', 'Category', 'Added', 'Acquired', ''].map(h => (
+                              <th key={h} style={{ padding: '6px 8px', color: 'var(--text2)', fontWeight: 500, whiteSpace: 'nowrap' }}>{h}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {contents.map(row => (
+                            <tr key={row.id} style={{ borderBottom: '0.5px solid var(--border)' }}>
+                              <td style={{ padding: '6px 8px', fontWeight: 500 }}>{row.item_name}</td>
+                              <td style={{ padding: '6px 8px', color: 'var(--text2)' }}>{row.description || '—'}</td>
+                              <td style={{ padding: '6px 8px' }}>
+                                {row.category ? <span className="chip purple">{row.category}</span> : '—'}
+                              </td>
+                              <td style={{ padding: '6px 8px', whiteSpace: 'nowrap' }}>
+                                {new Date(row.date_added).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                              </td>
+                              <td style={{ padding: '6px 8px', whiteSpace: 'nowrap' }}>
+                                {row.date_acquired ? new Date(row.date_acquired).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '—'}
+                              </td>
+                              <td style={{ padding: '6px 8px' }}>
+                                <button className="btn-ghost" style={{ padding: '3px 7px' }} onClick={() => deleteContentItem(row.id)}>
+                                  <IconTrash />
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+
+                {item.type === 'container' && (
+                  <div className="card">
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                      <div className="section-label" style={{ marginBottom: 0 }}>Contents ({contents.length})</div>
+                      <button className="btn-ghost" style={{ padding: '5px 10px', fontSize: 12 }} onClick={() => setShowAddContent(s => !s)}>
+                        <IconPlus /> Add
+                      </button>
+                    </div>
+
+                    {showAddContent && (
+                      <div style={{ background: 'var(--bg2)', borderRadius: 'var(--radius-sm)', padding: 12, marginBottom: 12 }}>
+                        <div className="form-group">
+                          <label className="form-label">Item name (leave blank for a bulk/category entry)</label>
+                          <input
+                            placeholder="e.g. Phillips screwdriver"
+                            value={contentForm.item_name}
+                            onChange={e => setContentForm(f => ({ ...f, item_name: e.target.value }))}
+                          />
+                        </div>
+                        <div className="form-group">
+                          <label className="form-label">Category</label>
+                          <input
+                            placeholder="e.g. Hand tools"
+                            value={contentForm.category}
+                            onChange={e => setContentForm(f => ({ ...f, category: e.target.value }))}
+                            list="category-suggestions"
+                          />
+                          <datalist id="category-suggestions">
+                            {categorySuggestions.map(c => <option key={c} value={c} />)}
+                          </datalist>
+                        </div>
+                        <div className="form-group">
+                          <label className="form-label">Description</label>
+                          <input
+                            placeholder="Optional notes"
+                            value={contentForm.description}
+                            onChange={e => setContentForm(f => ({ ...f, description: e.target.value }))}
+                          />
+                        </div>
+                        <div className="form-group">
+                          <label className="form-label">Date acquired</label>
+                          <input
+                            type="date"
+                            value={contentForm.date_acquired}
+                            onChange={e => setContentForm(f => ({ ...f, date_acquired: e.target.value }))}
+                          />
+                        </div>
+                        <button className="btn-primary save-btn" onClick={addContentItem} disabled={addingContent}>
+                          <IconCheck /> {addingContent ? 'Adding…' : 'Add to contents'}
+                        </button>
+                      </div>
+                    )}
+
+                    {contents.length === 0 ? (
+                      <div style={{ textAlign: 'center', color: 'var(--text3)', fontSize: 13, padding: '12px 0' }}>
+                        Nothing logged yet
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        {contents.map(row => (
+                          <div key={row.id} className="meta-row" style={{ borderTop: 'none', alignItems: 'flex-start' }}>
+                            <div style={{ flex: 1 }}>
+                              {row.item_name ? (
+                                <>
+                                  <span style={{ fontWeight: 500 }}>{row.item_name}</span>
+                                  {row.category && <span className="chip purple" style={{ marginLeft: 6 }}>{row.category}</span>}
+                                  {row.description && <div style={{ fontSize: 12, color: 'var(--text2)', marginTop: 2 }}>{row.description}</div>}
+                                </>
+                              ) : (
+                                <span className="chip purple">📦 {row.category} (bulk)</span>
+                              )}
+                            </div>
+                            <button className="btn-ghost" style={{ padding: '3px 7px' }} onClick={() => deleteContentItem(row.id)}>
+                              <IconTrash />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {children.length > 0 && (
                   <div className="card">
