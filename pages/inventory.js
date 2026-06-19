@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/router'
 import Head from 'next/head'
-import { IconPackage, IconLayers, IconArrowRight, IconPlus, IconTool } from '../lib/icons'
+import { IconPackage, IconLayers, IconArrowRight, IconPlus, IconTool, IconList } from '../lib/icons'
 
 export default function InventoryPage() {
   const router = useRouter()
@@ -45,6 +45,9 @@ export default function InventoryPage() {
         <div className="topbar">
           <div className="topbar-logo"><IconTool /></div>
           <h1>Inventory</h1>
+          <span className="topbar-sub" style={{ cursor: 'pointer' }} onClick={() => router.push('/contents')}>
+            Contents →
+          </span>
         </div>
 
         {loading ? (
@@ -108,6 +111,14 @@ export default function InventoryPage() {
           </>
         )}
 
+        <button
+          className="fab"
+          style={{ right: 88, background: 'var(--bg)', color: 'var(--text)', border: '0.5px solid var(--border2)' }}
+          onClick={() => router.push('/contents')}
+          aria-label="View all contents"
+        >
+          <IconList />
+        </button>
         <button className="fab" onClick={() => router.push('/new-tag')} aria-label="Generate new tag">
           <IconPlus />
         </button>
