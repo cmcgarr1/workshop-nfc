@@ -455,7 +455,7 @@ export default function ScanPage() {
                               </td>
                               <td style={{ padding: '6px 8px', color: 'var(--text2)' }}>{row.description || '—'}</td>
                               <td style={{ padding: '6px 8px' }}>
-                                {row.category ? <span className="chip purple">{row.category}{!row.item_name ? ' (category)' : ''}</span> : '—'}
+                                {row.category ? <span className="chip purple">{row.category}</span> : '—'}
                               </td>
                               <td style={{ padding: '6px 8px', whiteSpace: 'nowrap' }}>
                                 {new Date(row.date_added).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
