@@ -10,10 +10,15 @@ export default function InventoryPage() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
 
+  const [allContents, setAllContents] = useState([])
+
   useEffect(() => {
     fetch('/api/items')
       .then(r => r.json())
       .then(d => { setItems(d.items || []); setLoading(false) })
+    fetch('/api/contents')
+      .then(r => r.json())
+      .then(d => setAllContents(d.contents || []))
   }, [])
 
   const filtered = items.filter(i => {
@@ -88,6 +93,18 @@ export default function InventoryPage() {
     return items.filter(i => i.parent_id === id).length
   }
 
+  // "Items" here means entries in the contents table (actual logged tools),
+  // as distinct from sub-locations (child rows in the items table).
+  function getDirectItemCount(id) {
+    return allContents.filter(c => c.parent_item_id === id).length
+  }
+
+  function getAggregatedItemCount(node) {
+    let count = getDirectItemCount(node.id)
+    node.children.forEach(child => { count += getAggregatedItemCount(child) })
+    return count
+  }
+
   // Builds a nested tree: top-level items (no parent) first, each with its
   // children attached recursively, sorted alphabetically at every level so
   // the hierarchy reads top-to-bottom the way you'd actually walk the shop.
@@ -126,10 +143,15 @@ export default function InventoryPage() {
   }
 
   function TreeRow({ node, depth }) {
-    const childCount = node.children.length
+    const subLocationCount = node.children.length
+    const itemCount = getAggregatedItemCount(node)
     const isOpen = expanded.has(node.id)
     const nodeContents = isOpen ? aggregatedContents(node) : []
     const isLoadingContents = isOpen && isStillLoading(node)
+
+    const subParts = []
+    if (subLocationCount > 0) subParts.push(`${subLocationCount} sub-location${subLocationCount !== 1 ? 's' : ''}`)
+    subParts.push(`${itemCount} item${itemCount !== 1 ? 's' : ''}`)
 
     return (
       <>
@@ -149,7 +171,7 @@ export default function InventoryPage() {
             <div>
               <div className="inv-item-name">{node.name}</div>
               <div className="inv-item-sub">
-                {childCount > 0 ? `${childCount} item${childCount !== 1 ? 's' : ''} inside` : (node.type === 'container' ? 'Empty' : 'Nothing inside')}
+                {subParts.join(' · ')}
                 {node.notes ? ` · ${node.notes}` : ''}
               </div>
             </div>
@@ -250,24 +272,27 @@ export default function InventoryPage() {
                   </div>
                 )}
 
-                {filtered.map(item => (
-                  <div key={item.id} className="inv-item" onClick={() => router.push(`/scan?id=${item.id}`)}>
-                    <div className={`inv-item-icon ${item.type === 'location' ? 'loc' : 'con'}`}>
-                      {item.type === 'location' ? <IconLayers /> : <IconPackage />}
-                    </div>
-                    <div>
-                      <div className="inv-item-name">{item.name}</div>
-                      <div className="inv-item-sub">
-                        {item.type === 'container'
-                          ? getParentName(item.parent_id)
-                          : `${getChildCount(item.id)} item${getChildCount(item.id) !== 1 ? 's' : ''} inside`
-                        }
-                        {item.notes ? ` · ${item.notes}` : ''}
+                {filtered.map(item => {
+                  const subLocationCount = getChildCount(item.id)
+                  const itemCount = getDirectItemCount(item.id)
+                  return (
+                    <div key={item.id} className="inv-item" onClick={() => router.push(`/scan?id=${item.id}`)}>
+                      <div className={`inv-item-icon ${item.type === 'location' ? 'loc' : 'con'}`}>
+                        {item.type === 'location' ? <IconLayers /> : <IconPackage />}
                       </div>
+                      <div>
+                        <div className="inv-item-name">{item.name}</div>
+                        <div className="inv-item-sub">
+                          {item.type === 'container' ? `In ${getParentName(item.parent_id)} · ` : ''}
+                          {subLocationCount > 0 ? `${subLocationCount} sub-location${subLocationCount !== 1 ? 's' : ''} · ` : ''}
+                          {itemCount} item{itemCount !== 1 ? 's' : ''}
+                          {item.notes ? ` · ${item.notes}` : ''}
+                        </div>
+                      </div>
+                      <div className="inv-item-arrow"><IconArrowRight /></div>
                     </div>
-                    <div className="inv-item-arrow"><IconArrowRight /></div>
-                  </div>
-                ))}
+                  )
+                })}
               </>
             ) : (
               <>
