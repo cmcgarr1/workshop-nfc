@@ -170,9 +170,22 @@ export default function ScanPage() {
     loadContents(item.id)
   }
 
-  async function deleteItem() {
-    if (!confirm(`Delete "${item.name}"? Children will be unassigned.`)) return
-    await fetch(`/api/items?id=${encodeURIComponent(id)}`, { method: 'DELETE' })
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+
+  function openDeleteItem() {
+    if (children.length === 0) {
+      if (!confirm(`Delete "${item.name}"?`)) return
+      runDelete(false)
+    } else {
+      setShowDeleteModal(true)
+    }
+  }
+
+  async function runDelete(cascade) {
+    setDeleting(true)
+    await fetch(`/api/items?id=${encodeURIComponent(id)}${cascade ? '&cascade=true' : ''}`, { method: 'DELETE' })
+    setDeleting(false)
     router.push('/inventory')
   }
 
@@ -553,7 +566,7 @@ export default function ScanPage() {
                   <button
                     className="btn-danger"
                     style={{ width: '100%', marginTop: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
-                    onClick={deleteItem}
+                    onClick={openDeleteItem}
                   >
                     <IconTrash /> Delete item
                   </button>
@@ -607,6 +620,46 @@ export default function ScanPage() {
       {toast && (
         <div className="success-toast">
           <IconCheck /> {toast}
+        </div>
+      )}
+
+      {showDeleteModal && (
+        <div className="modal-bg" onClick={() => !deleting && setShowDeleteModal(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-handle" />
+            <h2>Delete "{item.name}"?</h2>
+            <p style={{ fontSize: 13, color: 'var(--text2)', marginBottom: 18 }}>
+              This {item.type} has {children.length} sub-item{children.length !== 1 ? 's' : ''} inside it.
+              Choose what should happen to them.
+            </p>
+
+            <button
+              className="btn-danger"
+              style={{ width: '100%', marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+              onClick={() => runDelete(true)}
+              disabled={deleting}
+            >
+              <IconTrash /> Delete this and all {children.length} sub-item{children.length !== 1 ? 's' : ''}
+            </button>
+
+            <button
+              className="btn-ghost"
+              style={{ width: '100%', marginBottom: 8 }}
+              onClick={() => runDelete(false)}
+              disabled={deleting}
+            >
+              Delete only this — keep sub-items, unassigned
+            </button>
+
+            <button
+              className="btn-ghost"
+              style={{ width: '100%', borderColor: 'transparent' }}
+              onClick={() => setShowDeleteModal(false)}
+              disabled={deleting}
+            >
+              Cancel
+            </button>
+          </div>
         </div>
       )}
     </>

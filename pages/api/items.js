@@ -57,7 +57,26 @@ export default async function handler(req, res) {
   }
 
   if (method === 'DELETE') {
-    const { id } = query
+    const { id, cascade } = query
+
+    if (cascade === 'true') {
+      // Walk down the tree collecting every descendant id, level by level
+      const idsToDelete = [id]
+      let frontier = [id]
+      while (frontier.length) {
+        const { data: kids } = await supabase.from('items').select('id').in('parent_id', frontier)
+        const kidIds = (kids || []).map(k => k.id)
+        if (!kidIds.length) break
+        idsToDelete.push(...kidIds)
+        frontier = kidIds
+      }
+      // Remove any logged tools inside the deleted branch, then the items themselves
+      await supabase.from('contents').delete().in('parent_item_id', idsToDelete)
+      const { error } = await supabase.from('items').delete().in('id', idsToDelete)
+      if (error) return res.status(400).json({ error: error.message })
+      return res.json({ ok: true, deletedCount: idsToDelete.length })
+    }
+
     await supabase.from('items').update({ parent_id: null }).eq('parent_id', id)
     const { error } = await supabase.from('items').delete().eq('id', id)
     if (error) return res.status(400).json({ error: error.message })
