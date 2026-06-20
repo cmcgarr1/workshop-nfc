@@ -24,6 +24,14 @@ function IconTrashCan() {
   )
 }
 
+function IconFilter({ active }) {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill={active ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+    </svg>
+  )
+}
+
 const emptyForm = { item_name: '', description: '', category: '', date_acquired: '', parent_item_id: '' }
 
 // This page fetches live data from /api/contents on mount. Next.js tries
@@ -48,8 +56,9 @@ export default function ContentsPage() {
   const [form, setForm] = useState(emptyForm)
   const [saving, setSaving] = useState(false)
 
-  const [filterCategory, setFilterCategory] = useState('')
-  const [filterBox, setFilterBox] = useState('')
+  const [filters, setFilters] = useState({})       // { category: ['measuring','cutting'], box_name: [...], location_name: [...] }
+  const [openFilterCol, setOpenFilterCol] = useState(null)
+  const [filterSearch, setFilterSearch] = useState('')
   const [sortKey, setSortKey] = useState('date_added')
   const [sortDir, setSortDir] = useState('desc')
 
@@ -126,7 +135,34 @@ export default function ContentsPage() {
     setContents(c => c.filter(r => r.id !== id))
   }
 
-  const boxOptions = [...new Set(contents.map(r => r.box_name).filter(b => b && b !== 'Unassigned'))].sort()
+  // Columns that get an Excel-style "filter by value" dropdown
+  const filterableKeys = ['category', 'box_name', 'location_name']
+
+  function uniqueValues(key) {
+    return [...new Set(contents.map(r => r[key]).filter(v => v && v !== 'Unassigned'))].sort()
+  }
+
+  function toggleFilterValue(col, val) {
+    setFilters(f => {
+      const current = f[col] || []
+      const next = current.includes(val) ? current.filter(v => v !== val) : [...current, val]
+      return { ...f, [col]: next }
+    })
+  }
+
+  function selectAllFilter(col, values) {
+    setFilters(f => ({ ...f, [col]: values }))
+  }
+
+  function clearFilter(col) {
+    setFilters(f => ({ ...f, [col]: [] }))
+  }
+
+  function clearAllFilters() {
+    setFilters({})
+  }
+
+  const activeFilterCount = Object.values(filters).filter(v => v && v.length > 0).length
 
   function toggleSort(key) {
     if (sortKey === key) {
@@ -154,8 +190,7 @@ export default function ContentsPage() {
       const haystack = `${r.item_name} ${r.description} ${r.category} ${r.box_name} ${r.location_name}`.toLowerCase()
       return haystack.includes(search.toLowerCase())
     })
-    .filter(r => !filterCategory || r.category === filterCategory)
-    .filter(r => !filterBox || r.box_name === filterBox)
+    .filter(r => filterableKeys.every(col => !filters[col] || filters[col].length === 0 || filters[col].includes(r[col])))
     .slice()
     .sort((a, b) => {
       const av = a[sortKey] || ''
@@ -212,21 +247,12 @@ export default function ContentsPage() {
           </button>
         </div>
 
-        <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-          <select value={filterCategory} onChange={e => setFilterCategory(e.target.value)} style={{ flex: 1 }}>
-            <option value="">All categories</option>
-            {categorySuggestions.map(c => <option key={c} value={c}>{c}</option>)}
-          </select>
-          <select value={filterBox} onChange={e => setFilterBox(e.target.value)} style={{ flex: 1 }}>
-            <option value="">All boxes</option>
-            {boxOptions.map(b => <option key={b} value={b}>{b}</option>)}
-          </select>
-          {(filterCategory || filterBox) && (
-            <button className="btn-ghost" onClick={() => { setFilterCategory(''); setFilterBox('') }}>
-              Clear
-            </button>
-          )}
-        </div>
+        {activeFilterCount > 0 && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, fontSize: 13, color: 'var(--text2)' }}>
+            <span>{activeFilterCount} column filter{activeFilterCount !== 1 ? 's' : ''} active</span>
+            <button className="btn-ghost" style={{ padding: '4px 10px' }} onClick={clearAllFilters}>Clear all</button>
+          </div>
+        )}
 
         {loading ? (
           <div className="loading"><div className="spinner" />Loading…</div>
@@ -239,23 +265,111 @@ export default function ContentsPage() {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border2)', textAlign: 'left' }}>
-                  {columns.map(col => (
-                    <th
-                      key={col.label || 'actions'}
-                      onClick={col.key ? () => toggleSort(col.key) : undefined}
-                      style={{
-                        padding: '8px 10px',
-                        color: 'var(--text2)',
-                        fontWeight: 500,
-                        whiteSpace: 'nowrap',
-                        cursor: col.key ? 'pointer' : 'default',
-                        userSelect: 'none'
-                      }}
-                    >
-                      {col.label}
-                      {col.key && sortKey === col.key && (sortDir === 'asc' ? ' ▲' : ' ▼')}
-                    </th>
-                  ))}
+                  {columns.map(col => {
+                    const isFilterable = filterableKeys.includes(col.key)
+                    const colActive = (filters[col.key] || []).length > 0
+                    const colValues = isFilterable ? uniqueValues(col.key) : []
+                    const visibleValues = openFilterCol === col.key
+                      ? colValues.filter(v => v.toLowerCase().includes(filterSearch.toLowerCase()))
+                      : []
+                    const selected = filters[col.key] || []
+
+                    return (
+                      <th
+                        key={col.label || 'actions'}
+                        style={{
+                          padding: '8px 10px',
+                          color: 'var(--text2)',
+                          fontWeight: 500,
+                          whiteSpace: 'nowrap',
+                          position: 'relative'
+                        }}
+                      >
+                        <span
+                          onClick={col.key ? () => toggleSort(col.key) : undefined}
+                          style={{ cursor: col.key ? 'pointer' : 'default', userSelect: 'none' }}
+                        >
+                          {col.label}
+                          {col.key && sortKey === col.key && (sortDir === 'asc' ? ' ▲' : ' ▼')}
+                        </span>
+
+                        {isFilterable && (
+                          <button
+                            className="btn-ghost"
+                            style={{
+                              padding: '2px 5px',
+                              marginLeft: 5,
+                              color: colActive ? 'var(--purple-text)' : 'var(--text3)',
+                              borderColor: colActive ? 'var(--purple-border)' : 'transparent',
+                              background: colActive ? 'var(--purple-bg)' : 'transparent'
+                            }}
+                            onClick={e => {
+                              e.stopPropagation()
+                              setFilterSearch('')
+                              setOpenFilterCol(openFilterCol === col.key ? null : col.key)
+                            }}
+                          >
+                            <IconFilter active={colActive} />
+                          </button>
+                        )}
+
+                        {openFilterCol === col.key && (
+                          <>
+                            <div
+                              style={{ position: 'fixed', inset: 0, zIndex: 40 }}
+                              onClick={() => setOpenFilterCol(null)}
+                            />
+                            <div
+                              onClick={e => e.stopPropagation()}
+                              style={{
+                                position: 'absolute', top: '100%', left: 0, marginTop: 4,
+                                width: 220, background: 'var(--bg)', border: '0.5px solid var(--border2)',
+                                borderRadius: 'var(--radius-sm)', boxShadow: '0 6px 20px rgba(43,33,24,0.25)',
+                                zIndex: 50, padding: 10, fontWeight: 400, textTransform: 'none', letterSpacing: 0
+                              }}
+                            >
+                              <input
+                                placeholder="Search values…"
+                                value={filterSearch}
+                                onChange={e => setFilterSearch(e.target.value)}
+                                style={{ marginBottom: 8, fontSize: 12 }}
+                                autoFocus
+                              />
+                              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                                <span
+                                  style={{ fontSize: 11, color: 'var(--purple-text)', cursor: 'pointer' }}
+                                  onClick={() => selectAllFilter(col.key, visibleValues)}
+                                >
+                                  Select all
+                                </span>
+                                <span
+                                  style={{ fontSize: 11, color: 'var(--text3)', cursor: 'pointer' }}
+                                  onClick={() => clearFilter(col.key)}
+                                >
+                                  Clear
+                                </span>
+                              </div>
+                              <div style={{ maxHeight: 220, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                {visibleValues.length === 0 ? (
+                                  <span style={{ fontSize: 12, color: 'var(--text3)' }}>No values</span>
+                                ) : visibleValues.map(val => (
+                                  <label key={val} style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, fontWeight: 400, cursor: 'pointer' }}>
+                                    <input
+                                      type="checkbox"
+                                      style={{ width: 'auto' }}
+                                      checked={selected.includes(val)}
+                                      onChange={() => toggleFilterValue(col.key, val)}
+                                    />
+                                    {val}
+                                  </label>
+                                ))}
+                              </div>
+                            </div>
+                          </>
+                        )}
+                      </th>
+                    )
+                  })}
                 </tr>
               </thead>
               <tbody>
@@ -275,8 +389,8 @@ export default function ContentsPage() {
                       }
                     </td>
                     <td style={{ padding: '8px 10px' }}>
-                      {row.location_name !== 'Unassigned'
-                        ? <span className="chip blue">{row.location_name}</span>
+                      {row.location_item_id
+                        ? <span className="chip blue" style={{ cursor: 'pointer' }} onClick={() => router.push(`/scan?id=${row.location_item_id}`)}>{row.location_name}</span>
                         : <span style={{ color: 'var(--text3)' }}>—</span>
                       }
                     </td>
