@@ -48,6 +48,11 @@ export default function ContentsPage() {
   const [form, setForm] = useState(emptyForm)
   const [saving, setSaving] = useState(false)
 
+  const [filterCategory, setFilterCategory] = useState('')
+  const [filterBox, setFilterBox] = useState('')
+  const [sortKey, setSortKey] = useState('date_added')
+  const [sortDir, setSortDir] = useState('desc')
+
   function loadContents() {
     fetch('/api/contents')
       .then(r => r.json())
@@ -121,11 +126,48 @@ export default function ContentsPage() {
     setContents(c => c.filter(r => r.id !== id))
   }
 
-  const filtered = contents.filter(r => {
-    if (!search) return true
-    const haystack = `${r.item_name} ${r.description} ${r.category} ${r.box_name} ${r.location_name}`.toLowerCase()
-    return haystack.includes(search.toLowerCase())
-  })
+  const boxOptions = [...new Set(contents.map(r => r.box_name).filter(b => b && b !== 'Unassigned'))].sort()
+
+  function toggleSort(key) {
+    if (sortKey === key) {
+      setSortDir(d => (d === 'asc' ? 'desc' : 'asc'))
+    } else {
+      setSortKey(key)
+      setSortDir('asc')
+    }
+  }
+
+  const columns = [
+    { key: 'item_name', label: 'Item' },
+    { key: 'description', label: 'Description' },
+    { key: 'category', label: 'Category' },
+    { key: 'date_added', label: 'Date added' },
+    { key: 'date_acquired', label: 'Date acquired' },
+    { key: 'box_name', label: 'Box' },
+    { key: 'location_name', label: 'Location' },
+    { key: null, label: '' }
+  ]
+
+  const filtered = contents
+    .filter(r => {
+      if (!search) return true
+      const haystack = `${r.item_name} ${r.description} ${r.category} ${r.box_name} ${r.location_name}`.toLowerCase()
+      return haystack.includes(search.toLowerCase())
+    })
+    .filter(r => !filterCategory || r.category === filterCategory)
+    .filter(r => !filterBox || r.box_name === filterBox)
+    .slice()
+    .sort((a, b) => {
+      const av = a[sortKey] || ''
+      const bv = b[sortKey] || ''
+      let cmp
+      if (sortKey === 'date_added' || sortKey === 'date_acquired') {
+        cmp = new Date(av || 0) - new Date(bv || 0)
+      } else {
+        cmp = String(av).toLowerCase().localeCompare(String(bv).toLowerCase())
+      }
+      return sortDir === 'asc' ? cmp : -cmp
+    })
 
   function fmtDate(d) {
     if (!d) return '—'
@@ -170,19 +212,49 @@ export default function ContentsPage() {
           </button>
         </div>
 
+        <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+          <select value={filterCategory} onChange={e => setFilterCategory(e.target.value)} style={{ flex: 1 }}>
+            <option value="">All categories</option>
+            {categorySuggestions.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+          <select value={filterBox} onChange={e => setFilterBox(e.target.value)} style={{ flex: 1 }}>
+            <option value="">All boxes</option>
+            {boxOptions.map(b => <option key={b} value={b}>{b}</option>)}
+          </select>
+          {(filterCategory || filterBox) && (
+            <button className="btn-ghost" onClick={() => { setFilterCategory(''); setFilterBox('') }}>
+              Clear
+            </button>
+          )}
+        </div>
+
         {loading ? (
           <div className="loading"><div className="spinner" />Loading…</div>
         ) : filtered.length === 0 ? (
           <div style={{ textAlign: 'center', color: 'var(--text3)', padding: '40px 0', fontSize: 14 }}>
-            No contents logged yet
+            {contents.length === 0 ? 'No contents logged yet' : 'No items match your search or filters'}
           </div>
         ) : (
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border2)', textAlign: 'left' }}>
-                  {['Item', 'Description', 'Category', 'Date added', 'Date acquired', 'Box', 'Location', ''].map(h => (
-                    <th key={h} style={{ padding: '8px 10px', color: 'var(--text2)', fontWeight: 500, whiteSpace: 'nowrap' }}>{h}</th>
+                  {columns.map(col => (
+                    <th
+                      key={col.label || 'actions'}
+                      onClick={col.key ? () => toggleSort(col.key) : undefined}
+                      style={{
+                        padding: '8px 10px',
+                        color: 'var(--text2)',
+                        fontWeight: 500,
+                        whiteSpace: 'nowrap',
+                        cursor: col.key ? 'pointer' : 'default',
+                        userSelect: 'none'
+                      }}
+                    >
+                      {col.label}
+                      {col.key && sortKey === col.key && (sortDir === 'asc' ? ' ▲' : ' ▼')}
+                    </th>
                   ))}
                 </tr>
               </thead>
