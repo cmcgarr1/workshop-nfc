@@ -59,6 +59,7 @@ export default function ContentsPage() {
   const [filters, setFilters] = useState({})       // { category: ['measuring','cutting'], box_name: [...], location_name: [...] }
   const [openFilterCol, setOpenFilterCol] = useState(null)
   const [filterSearch, setFilterSearch] = useState('')
+  const [filterPos, setFilterPos] = useState({ top: 0, left: 0 })
   const [sortKey, setSortKey] = useState('date_added')
   const [sortDir, setSortDir] = useState('desc')
 
@@ -305,8 +306,15 @@ export default function ContentsPage() {
                             }}
                             onClick={e => {
                               e.stopPropagation()
+                              if (openFilterCol === col.key) {
+                                setOpenFilterCol(null)
+                                return
+                              }
+                              const rect = e.currentTarget.getBoundingClientRect()
+                              const left = Math.min(rect.left, window.innerWidth - 236)
+                              setFilterPos({ top: rect.bottom + 6, left: Math.max(left, 8) })
                               setFilterSearch('')
-                              setOpenFilterCol(openFilterCol === col.key ? null : col.key)
+                              setOpenFilterCol(col.key)
                             }}
                           >
                             <IconFilter active={colActive} />
@@ -316,16 +324,16 @@ export default function ContentsPage() {
                         {openFilterCol === col.key && (
                           <>
                             <div
-                              style={{ position: 'fixed', inset: 0, zIndex: 40 }}
+                              style={{ position: 'fixed', inset: 0, zIndex: 200 }}
                               onClick={() => setOpenFilterCol(null)}
                             />
                             <div
                               onClick={e => e.stopPropagation()}
                               style={{
-                                position: 'absolute', top: '100%', left: 0, marginTop: 4,
+                                position: 'fixed', top: filterPos.top, left: filterPos.left,
                                 width: 220, background: 'var(--bg)', border: '0.5px solid var(--border2)',
-                                borderRadius: 'var(--radius-sm)', boxShadow: '0 6px 20px rgba(43,33,24,0.25)',
-                                zIndex: 50, padding: 10, fontWeight: 400, textTransform: 'none', letterSpacing: 0
+                                borderRadius: 'var(--radius-sm)', boxShadow: '0 6px 20px rgba(43,33,24,0.35)',
+                                zIndex: 201, padding: 10, fontWeight: 400, textTransform: 'none', letterSpacing: 0
                               }}
                             >
                               <input
@@ -349,14 +357,14 @@ export default function ContentsPage() {
                                   Clear
                                 </span>
                               </div>
-                              <div style={{ maxHeight: 220, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                              <div style={{ maxHeight: 220, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
                                 {visibleValues.length === 0 ? (
                                   <span style={{ fontSize: 12, color: 'var(--text3)' }}>No values</span>
                                 ) : visibleValues.map(val => (
                                   <label key={val} style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, fontWeight: 400, cursor: 'pointer' }}>
                                     <input
                                       type="checkbox"
-                                      style={{ width: 'auto' }}
+                                      style={{ width: 16, height: 16, flexShrink: 0, padding: 0, accentColor: '#B9853C' }}
                                       checked={selected.includes(val)}
                                       onChange={() => toggleFilterValue(col.key, val)}
                                     />
