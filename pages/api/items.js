@@ -1,4 +1,5 @@
 import { supabase, getRequestContext } from '../../lib/supabaseServer'
+import { buildItemsById, pathString } from '../../lib/itemPath'
 
 export default async function handler(req, res) {
   const { method, query, body } = req
@@ -21,7 +22,9 @@ export default async function handler(req, res) {
         .select('*')
         .eq('parent_id', id)
         .eq('user_id', userId)
-      return res.json({ item: data, children: children || [], canWrite })
+      const { data: allUserItems } = await supabase.from('items').select('id, name, parent_id').eq('user_id', userId)
+      const itemsById = buildItemsById(allUserItems)
+      return res.json({ item: data, children: children || [], canWrite, path: pathString(id, itemsById) })
     }
     const { data, error } = await supabase
       .from('items')

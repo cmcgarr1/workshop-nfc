@@ -1,4 +1,5 @@
 import { supabase, getRequestContext } from '../../lib/supabaseServer'
+import { buildItemsById, pathString, contentPathString } from '../../lib/itemPath'
 
 export default async function handler(req, res) {
   const { method, query, body } = req
@@ -26,15 +27,15 @@ export default async function handler(req, res) {
     if (error) return res.status(500).json({ error: error.message })
 
     const { data: items } = await supabase.from('items').select('id, name, parent_id').eq('user_id', userId)
-    const itemsById = Object.fromEntries((items || []).map(i => [i.id, i]))
+    const itemsById = buildItemsById(items)
 
     const enriched = (data || []).map(row => {
       const parent = row.parent_item_id ? itemsById[row.parent_item_id] : null
-      const location = parent?.parent_id ? itemsById[parent.parent_id] : null
       return {
         ...row,
         box_name: parent ? parent.name : 'Unassigned',
-        location_name: location ? location.name : (parent ? 'Unassigned' : 'Unassigned')
+        path: row.parent_item_id ? pathString(row.parent_item_id, itemsById) : 'Unassigned',
+        full_path: contentPathString(row, itemsById)
       }
     })
 

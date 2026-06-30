@@ -140,7 +140,7 @@ export default function ContentsPage() {
   }
 
   // Columns that get an Excel-style "filter by value" dropdown
-  const filterableKeys = ['category', 'box_name', 'location_name']
+  // filterableKeys is defined further below, after columns
 
   function uniqueValues(key) {
     return [...new Set(contents.map(r => r[key]).filter(v => v && v !== 'Unassigned'))].sort()
@@ -184,14 +184,16 @@ export default function ContentsPage() {
     { key: 'date_added', label: 'Date added' },
     { key: 'date_acquired', label: 'Date acquired' },
     { key: 'box_name', label: 'Box' },
-    { key: 'location_name', label: 'Location' },
+    { key: 'path', label: 'Path' },
     ...(loggedIn ? [{ key: null, label: '' }] : [])
   ]
+
+  const filterableKeys = ['category', 'box_name']
 
   const filtered = contents
     .filter(r => {
       if (!search) return true
-      const haystack = `${r.item_name} ${r.description} ${r.category} ${r.box_name} ${r.location_name}`.toLowerCase()
+      const haystack = `${r.item_name} ${r.description} ${r.category} ${r.box_name} ${r.path}`.toLowerCase()
       return haystack.includes(search.toLowerCase())
     })
     .filter(r => filterableKeys.every(col => !filters[col] || filters[col].length === 0 || filters[col].includes(r[col])))
@@ -401,11 +403,8 @@ export default function ContentsPage() {
                         : <span style={{ color: 'var(--text3)' }}>Unassigned</span>
                       }
                     </td>
-                    <td style={{ padding: '8px 10px' }}>
-                      {row.location_item_id
-                        ? <span className="chip blue" style={{ cursor: 'pointer' }} onClick={() => router.push(`/scan?id=${row.location_item_id}`)}>{row.location_name}</span>
-                        : <span style={{ color: 'var(--text3)' }}>—</span>
-                      }
+                    <td style={{ padding: '8px 10px', fontSize: 12, color: 'var(--text2)', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
+                      {row.path || '—'}
                     </td>
                     {loggedIn && (
                       <td style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>

@@ -25,6 +25,7 @@ export default function ScanPage() {
   const [item, setItem] = useState(null)
   const [children, setChildren] = useState([])
   const [allItems, setAllItems] = useState([])
+  const [itemPath, setItemPath] = useState('')
   const [view, setView] = useState('main')
   const [toast, setToast] = useState(null)
 
@@ -62,6 +63,7 @@ export default function ScanPage() {
       .then(data => {
         if (!data) return
         setItem(data.item)
+        setItemPath(data.path || '')
         setChildren(data.children)
         setStatus('known')
         setEditForm({
@@ -422,7 +424,7 @@ export default function ScanPage() {
                     </div>
                     <div>
                       <div className="item-name">{item.name}</div>
-                      <div className="item-id">{item.id}</div>
+                      {loggedIn && <div className="item-id">{item.id}</div>}
                     </div>
                     <span
                       className={`chip${item.type === 'location' ? ' blue' : ' purple'}`}
@@ -431,6 +433,12 @@ export default function ScanPage() {
                       {item.type === 'location' ? 'Location' : 'Container'}
                     </span>
                   </div>
+
+                  {item.parent_id && itemPath && (
+                    <div style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 12, fontFamily: 'monospace', wordBreak: 'break-word' }}>
+                      {itemPath}
+                    </div>
+                  )}
 
                   <div className="meta">
                     {item.notes && (
@@ -452,11 +460,13 @@ export default function ScanPage() {
                         }
                       </span>
                     </div>
-                    <div className="meta-row">
-                      <IconTag />
-                      <span className="meta-label">NFC tag</span>
-                      <span className="meta-value" style={{ fontFamily: 'monospace', fontSize: 12 }}>{item.id}</span>
-                    </div>
+                    {loggedIn && (
+                      <div className="meta-row">
+                        <IconTag />
+                        <span className="meta-label">NFC tag</span>
+                        <span className="meta-value" style={{ fontFamily: 'monospace', fontSize: 12 }}>{item.id}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
 
