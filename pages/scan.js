@@ -380,11 +380,13 @@ export default function ScanPage() {
                   {(item.photo_url || loggedIn) && (
                     <div style={{ marginBottom: 14 }}>
                       {item.photo_url ? (
-                        <img
-                          src={item.photo_url}
-                          alt={item.name}
-                          style={{ width: '100%', maxHeight: 320, objectFit: 'contain', background: 'var(--bg2)', borderRadius: 'var(--radius-sm)', display: 'block' }}
-                        />
+                        <a href={item.photo_url} target="_blank" rel="noopener noreferrer">
+                          <img
+                            src={item.photo_url}
+                            alt={item.name}
+                            style={{ width: '100%', maxHeight: 320, objectFit: 'contain', background: 'var(--bg2)', borderRadius: 'var(--radius-sm)', display: 'block', cursor: 'pointer' }}
+                          />
+                        </a>
                       ) : (
                         <div
                           style={{
