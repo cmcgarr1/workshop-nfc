@@ -193,12 +193,49 @@ export default function ScanPage() {
     router.push('/inventory')
   }
 
+  function resizeImage(file, maxDim = 1600, quality = 0.82) {
+    return new Promise((resolve, reject) => {
+      const img = new Image()
+      const reader = new FileReader()
+      reader.onload = e => { img.src = e.target.result }
+      reader.onerror = reject
+      img.onload = () => {
+        let { width, height } = img
+        if (width > maxDim || height > maxDim) {
+          if (width > height) {
+            height = Math.round(height * (maxDim / width))
+            width = maxDim
+          } else {
+            width = Math.round(width * (maxDim / height))
+            height = maxDim
+          }
+        }
+        const canvas = document.createElement('canvas')
+        canvas.width = width
+        canvas.height = height
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height)
+        canvas.toBlob(blob => {
+          if (!blob) return reject(new Error('Resize failed'))
+          resolve(new File([blob], file.name.replace(/\.\w+$/, '.jpg'), { type: 'image/jpeg' }))
+        }, 'image/jpeg', quality)
+      }
+      img.onerror = reject
+      reader.readAsDataURL(file)
+    })
+  }
+
   async function uploadPhoto(file) {
     if (!file) return
     setUploadingPhoto(true)
+    let toUpload = file
+    try {
+      toUpload = await resizeImage(file)
+    } catch {
+      // If resizing fails for any reason, fall back to the original file
+    }
     const formData = new FormData()
     formData.append('item_id', item.id)
-    formData.append('photo', file)
+    formData.append('photo', toUpload)
     const r = await apiFetch('/api/upload-photo', { method: 'POST', body: formData })
     const data = await r.json()
     setUploadingPhoto(false)
@@ -346,7 +383,7 @@ export default function ScanPage() {
                         <img
                           src={item.photo_url}
                           alt={item.name}
-                          style={{ width: '100%', maxHeight: 260, objectFit: 'cover', borderRadius: 'var(--radius-sm)', display: 'block' }}
+                          style={{ width: '100%', maxHeight: 320, objectFit: 'contain', background: 'var(--bg2)', borderRadius: 'var(--radius-sm)', display: 'block' }}
                         />
                       ) : (
                         <div
