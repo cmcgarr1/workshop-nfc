@@ -259,15 +259,6 @@ export default function ScanPage() {
       </Head>
 
       <div className="page">
-        <div className="topbar">
-          <div className="topbar-logo">
-            <IconTool />
-          </div>
-          <h1>Workshop</h1>
-          <span className="topbar-sub" style={{ cursor: 'pointer' }} onClick={() => router.push('/inventory')}>
-            Home →
-          </span>
-        </div>
 
         {status === 'loading' && (
           <div className="loading">
@@ -422,16 +413,43 @@ export default function ScanPage() {
                     <div className={`item-icon${item.type === 'location' ? ' loc' : ''}`}>
                       {item.type === 'location' ? <IconLayers /> : <IconPackage />}
                     </div>
-                    <div>
-                      <div className="item-name">{item.name}</div>
+                    <div style={{ flex: 1 }}>
+                      {view === 'edit' ? (
+                        <input
+                          value={editForm.name}
+                          onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
+                          style={{ fontWeight: 500, fontSize: 17, padding: '4px 8px' }}
+                        />
+                      ) : (
+                        <div className="item-name">{item.name}</div>
+                      )}
                       {loggedIn && <div className="item-id">{item.id}</div>}
                     </div>
-                    <span
-                      className={`chip${item.type === 'location' ? ' blue' : ' purple'}`}
-                      style={{ marginLeft: 'auto' }}
-                    >
-                      {item.type === 'location' ? 'Location' : 'Container'}
-                    </span>
+                    {view === 'edit' ? (
+                      <div className="type-toggle" style={{ margin: 0 }}>
+                        <button
+                          className={`type-opt${editForm.type === 'container' ? ' active' : ''}`}
+                          style={{ padding: '4px 10px', fontSize: 12 }}
+                          onClick={() => setEditForm(f => ({ ...f, type: 'container' }))}
+                        >
+                          Container
+                        </button>
+                        <button
+                          className={`type-opt${editForm.type === 'location' ? ' active' : ''}`}
+                          style={{ padding: '4px 10px', fontSize: 12 }}
+                          onClick={() => setEditForm(f => ({ ...f, type: 'location' }))}
+                        >
+                          Location
+                        </button>
+                      </div>
+                    ) : (
+                      <span
+                        className={`chip${item.type === 'location' ? ' blue' : ' purple'}`}
+                        style={{ marginLeft: 'auto' }}
+                      >
+                        {item.type === 'location' ? 'Location' : 'Container'}
+                      </span>
+                    )}
                   </div>
 
                   {item.parent_id && itemPath && (
@@ -441,24 +459,44 @@ export default function ScanPage() {
                   )}
 
                   <div className="meta">
-                    {item.notes && (
-                      <div className="meta-row">
-                        <IconNote />
-                        <span className="meta-label">Contents</span>
-                        <span className="meta-value">{item.notes}</span>
-                      </div>
-                    )}
+                    <div className="meta-row">
+                      <IconNote />
+                      <span className="meta-label">Notes</span>
+                      {view === 'edit' ? (
+                        <input
+                          value={editForm.notes}
+                          onChange={e => setEditForm(f => ({ ...f, notes: e.target.value }))}
+                          placeholder="Notes…"
+                          style={{ marginLeft: 'auto', width: '60%', fontSize: 13, padding: '3px 8px' }}
+                        />
+                      ) : (
+                        <span className="meta-value">{item.notes || <span style={{ color: 'var(--text3)' }}>—</span>}</span>
+                      )}
+                    </div>
                     <div className="meta-row">
                       <IconSitemap />
                       <span className="meta-label">Location</span>
-                      <span className="meta-value">
-                        {item.parent_id
-                          ? <span className="chip blue">
-                              {allItems.find(i => i.id === item.parent_id)?.name || item.parent_id}
-                            </span>
-                          : <span style={{ color: 'var(--text3)' }}>Unassigned</span>
-                        }
-                      </span>
+                      {view === 'edit' ? (
+                        <select
+                          value={editForm.parent_id}
+                          onChange={e => setEditForm(f => ({ ...f, parent_id: e.target.value }))}
+                          style={{ marginLeft: 'auto', width: '60%', fontSize: 13, padding: '3px 8px' }}
+                        >
+                          <option value="">Unassigned</option>
+                          {allItems.filter(i => i.id !== item.id).map(i => (
+                            <option key={i.id} value={i.id}>{i.name}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <span className="meta-value">
+                          {item.parent_id
+                            ? <span className="chip blue">
+                                {allItems.find(i => i.id === item.parent_id)?.name || item.parent_id}
+                              </span>
+                            : <span style={{ color: 'var(--text3)' }}>Unassigned</span>
+                          }
+                        </span>
+                      )}
                     </div>
                     {loggedIn && (
                       <div className="meta-row">
@@ -468,6 +506,17 @@ export default function ScanPage() {
                       </div>
                     )}
                   </div>
+
+                  {view === 'edit' && (
+                    <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+                      <button className="btn-primary save-btn" style={{ flex: 1 }} onClick={saveEdit} disabled={saving}>
+                        <IconCheck /> {saving ? 'Saving…' : 'Save'}
+                      </button>
+                      <button className="btn-ghost" style={{ padding: '10px 14px' }} onClick={() => setView('main')}>
+                        Cancel
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 <div className="card">
@@ -608,8 +657,16 @@ export default function ScanPage() {
                     </button>
                   )}
                   {loggedIn && (
-                    <button className="action-btn" onClick={() => { setView('edit'); apiFetch('/api/items').then(r=>r.json()).then(d=>setAllItems(d.items||[])) }}>
-                      <IconEdit /> Edit
+                    <button
+                      className={`action-btn${view === 'edit' ? ' primary' : ''}`}
+                      onClick={() => {
+                        if (view === 'edit') { setView('main') } else {
+                          setView('edit')
+                          apiFetch('/api/items').then(r => r.json()).then(d => setAllItems(d.items || []))
+                        }
+                      }}
+                    >
+                      <IconEdit /> {view === 'edit' ? 'Done' : 'Edit'}
                     </button>
                   )}
                   {loggedIn && (
@@ -619,64 +676,6 @@ export default function ScanPage() {
                   )}
                   <button className="action-btn primary" onClick={() => router.push('/inventory')}>
                     <IconList /> Inventory
-                  </button>
-                </div>
-              </>
-            )}
-
-            {view === 'edit' && (
-              <>
-                <div className="back-link" onClick={() => setView('main')}>
-                  <IconArrowLeft /> Back
-                </div>
-                <div className="card">
-                  <div className="section-label" style={{ marginBottom: 14 }}>Edit item</div>
-
-                  <div className="type-toggle">
-                    <button
-                      className={`type-opt${editForm.type === 'container' ? ' active' : ''}`}
-                      onClick={() => setEditForm(f => ({ ...f, type: 'container' }))}
-                    >
-                      <IconPackage /> Container
-                    </button>
-                    <button
-                      className={`type-opt${editForm.type === 'location' ? ' active' : ''}`}
-                      onClick={() => setEditForm(f => ({ ...f, type: 'location' }))}
-                    >
-                      <IconLayers /> Location
-                    </button>
-                  </div>
-
-                  <div className="form-group">
-                    <label className="form-label">Name</label>
-                    <input value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))} />
-                  </div>
-
-                  <div className="form-group">
-                    <label className="form-label">Parent location</label>
-                    <select value={editForm.parent_id || ''} onChange={e => setEditForm(f => ({ ...f, parent_id: e.target.value }))}>
-                      <option value="">— unassigned —</option>
-                      {locations.map(i => (
-                        <option key={i.id} value={i.id}>{i.name}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="form-group">
-                    <label className="form-label">Contents / notes</label>
-                    <input value={editForm.notes} onChange={e => setEditForm(f => ({ ...f, notes: e.target.value }))} />
-                  </div>
-
-                  <button className="btn-primary save-btn" onClick={saveEdit} disabled={saving}>
-                    <IconCheck /> {saving ? 'Saving…' : 'Save changes'}
-                  </button>
-
-                  <button
-                    className="btn-danger"
-                    style={{ width: '100%', marginTop: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
-                    onClick={openDeleteItem}
-                  >
-                    <IconTrash /> Delete item
                   </button>
                 </div>
               </>
