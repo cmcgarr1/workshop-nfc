@@ -37,6 +37,7 @@ export default function ScanPage() {
   const [showAddContent, setShowAddContent] = useState(false)
   const [contentForm, setContentForm] = useState({ item_name: '', description: '', category: '', date_acquired: '', is_category: false })
   const [addingContent, setAddingContent] = useState(false)
+  const [uploadingPhoto, setUploadingPhoto] = useState(false)
 
   function loadContents(parentId) {
     apiFetch(`/api/contents?parent_item_id=${encodeURIComponent(parentId)}`)
@@ -192,6 +193,20 @@ export default function ScanPage() {
     router.push('/inventory')
   }
 
+  async function uploadPhoto(file) {
+    if (!file) return
+    setUploadingPhoto(true)
+    const formData = new FormData()
+    formData.append('item_id', item.id)
+    formData.append('photo', file)
+    const r = await apiFetch('/api/upload-photo', { method: 'POST', body: formData })
+    const data = await r.json()
+    setUploadingPhoto(false)
+    if (!r.ok) return alert(data.error)
+    setItem(data.item)
+    showToast('Photo updated!')
+  }
+
   const parentItem = item && allItems.find(i => i.id === item.parent_id)
   const locations = allItems.filter(i => i.type === 'location' && i.id !== id)
 
@@ -325,6 +340,43 @@ export default function ScanPage() {
                 </div>
 
                 <div className="card">
+                  {(item.photo_url || loggedIn) && (
+                    <div style={{ marginBottom: 14 }}>
+                      {item.photo_url ? (
+                        <img
+                          src={item.photo_url}
+                          alt={item.name}
+                          style={{ width: '100%', maxHeight: 260, objectFit: 'cover', borderRadius: 'var(--radius-sm)', display: 'block' }}
+                        />
+                      ) : (
+                        <div
+                          style={{
+                            width: '100%', height: 140, borderRadius: 'var(--radius-sm)',
+                            border: '1px dashed var(--border2)', display: 'flex', alignItems: 'center',
+                            justifyContent: 'center', color: 'var(--text3)', fontSize: 13
+                          }}
+                        >
+                          No photo yet
+                        </div>
+                      )}
+                      {loggedIn && (
+                        <label
+                          className="btn-ghost"
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 8, fontSize: 12, padding: '6px 10px', cursor: 'pointer' }}
+                        >
+                          {uploadingPhoto ? 'Uploading…' : item.photo_url ? 'Replace photo' : 'Add photo'}
+                          <input
+                            type="file"
+                            accept="image/*"
+                            style={{ display: 'none' }}
+                            disabled={uploadingPhoto}
+                            onChange={e => uploadPhoto(e.target.files?.[0])}
+                          />
+                        </label>
+                      )}
+                    </div>
+                  )}
+
                   <div className="item-head">
                     <div className={`item-icon${item.type === 'location' ? ' loc' : ''}`}>
                       {item.type === 'location' ? <IconLayers /> : <IconPackage />}
