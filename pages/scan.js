@@ -567,36 +567,38 @@ export default function ScanPage() {
                       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                         <thead>
                           <tr style={{ borderBottom: '1px solid var(--border2)', textAlign: 'left' }}>
-                            {['Item', 'Description', 'Category', 'Added', 'Acquired', ...(loggedIn ? [''] : [])].map(h => (
+                            {['Name', 'Item', 'Description', 'Category', 'Added', 'Acquired', ...(loggedIn ? [''] : [])].map(h => (
                               <th key={h} style={{ padding: '6px 8px', color: 'var(--text2)', fontWeight: 500, whiteSpace: 'nowrap' }}>{h}</th>
                             ))}
                           </tr>
                         </thead>
                         <tbody>
-                          {contents.map(row => (
-                            <tr key={row.id} style={{ borderBottom: '0.5px solid var(--border)' }}>
-                              <td style={{ padding: '6px 8px', fontWeight: 500 }}>
-                                {row.item_name || <span style={{ color: 'var(--text3)', fontStyle: 'italic' }}>—</span>}
-                              </td>
-                              <td style={{ padding: '6px 8px', color: 'var(--text2)' }}>{row.description || '—'}</td>
-                              <td style={{ padding: '6px 8px' }}>
-                                {row.category ? <span className="chip purple">{row.category}</span> : '—'}
-                              </td>
-                              <td style={{ padding: '6px 8px', whiteSpace: 'nowrap' }}>
-                                {new Date(row.date_added).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                              </td>
-                              <td style={{ padding: '6px 8px', whiteSpace: 'nowrap' }}>
-                                {row.date_acquired ? new Date(row.date_acquired).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '—'}
-                              </td>
-                              {loggedIn && (
+                          {contents.map(row => {
+                            const displayName = row.item_name || row.category || '—'
+                            return (
+                              <tr key={row.id} style={{ borderBottom: '0.5px solid var(--border)' }}>
+                                <td style={{ padding: '6px 8px', fontWeight: 500 }}>{displayName}</td>
+                                <td style={{ padding: '6px 8px' }}>{row.item_name || '—'}</td>
+                                <td style={{ padding: '6px 8px', color: 'var(--text2)' }}>{row.description || '—'}</td>
                                 <td style={{ padding: '6px 8px' }}>
-                                  <button className="btn-ghost" style={{ padding: '3px 7px' }} onClick={() => deleteContentItem(row.id)}>
-                                    <IconTrash />
-                                  </button>
+                                  {row.category ? <span className="chip purple">{row.category}</span> : '—'}
                                 </td>
-                              )}
-                            </tr>
-                          ))}
+                                <td style={{ padding: '6px 8px', whiteSpace: 'nowrap' }}>
+                                  {new Date(row.date_added).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                                </td>
+                                <td style={{ padding: '6px 8px', whiteSpace: 'nowrap' }}>
+                                  {row.date_acquired ? new Date(row.date_acquired).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '—'}
+                                </td>
+                                {loggedIn && (
+                                  <td style={{ padding: '6px 8px' }}>
+                                    <button className="btn-ghost" style={{ padding: '3px 7px' }} onClick={() => deleteContentItem(row.id)}>
+                                      <IconTrash />
+                                    </button>
+                                  </td>
+                                )}
+                              </tr>
+                            )
+                          })}
                         </tbody>
                       </table>
                     </div>
