@@ -1,32 +1,31 @@
-import { createClient } from '@supabase/supabase-js'
-
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-)
+import { supabase, getUserFromRequest } from '../../lib/supabaseServer'
 
 export default async function handler(req, res) {
   const { method, query, body } = req
+
+  const user = await getUserFromRequest(req)
+  if (!user) return res.status(401).json({ error: 'Not signed in' })
 
   if (method === 'GET') {
     const { parent_item_id, categories_only } = query
 
     if (categories_only) {
-      const { data, error } = await supabase.from('contents').select('category')
+      const { data, error } = await supabase
+        .from('contents')
+        .select('category')
+        .eq('user_id', user.id)
       if (error) return res.status(500).json({ error: error.message })
       const unique = [...new Set((data || []).map(r => r.category).filter(Boolean))].sort()
       return res.json({ categories: unique })
     }
 
-    let q = supabase.from('contents').select('*').order('date_added', { ascending: false })
+    let q = supabase.from('contents').select('*').eq('user_id', user.id).order('date_added', { ascending: false })
     if (parent_item_id) q = q.eq('parent_item_id', parent_item_id)
 
     const { data, error } = await q
     if (error) return res.status(500).json({ error: error.message })
 
-    // Enrich each row with the live box/location names so the frontend
-    // doesn't have to do a second round-trip per row.
-    const { data: items } = await supabase.from('items').select('id, name, parent_id')
+    const { data: items } = await supabase.from('items').select('id, name, parent_id').eq('user_id', user.id)
     const itemsById = Object.fromEntries((items || []).map(i => [i.id, i]))
 
     const enriched = (data || []).map(row => {
@@ -48,6 +47,16 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'item_name or category required' })
     }
 
+    if (parent_item_id) {
+      const { data: parent } = await supabase
+        .from('items')
+        .select('id')
+        .eq('id', parent_item_id)
+        .eq('user_id', user.id)
+        .single()
+      if (!parent) return res.status(400).json({ error: 'Invalid location' })
+    }
+
     const { data, error } = await supabase
       .from('contents')
       .insert([{
@@ -55,7 +64,8 @@ export default async function handler(req, res) {
         item_name,
         description: description || '',
         category: category || '',
-        date_acquired: date_acquired || null
+        date_acquired: date_acquired || null,
+        user_id: user.id
       }])
       .select()
       .single()
@@ -69,6 +79,16 @@ export default async function handler(req, res) {
     if (!id) return res.status(400).json({ error: 'id required' })
     const { item_name, description, category, date_acquired, parent_item_id } = body
 
+    if (parent_item_id) {
+      const { data: parent } = await supabase
+        .from('items')
+        .select('id')
+        .eq('id', parent_item_id)
+        .eq('user_id', user.id)
+        .single()
+      if (!parent) return res.status(400).json({ error: 'Invalid location' })
+    }
+
     const { data, error } = await supabase
       .from('contents')
       .update({
@@ -79,6 +99,7 @@ export default async function handler(req, res) {
         parent_item_id: parent_item_id || null
       })
       .eq('id', id)
+      .eq('user_id', user.id)
       .select()
       .single()
 
@@ -90,7 +111,7 @@ export default async function handler(req, res) {
     const { id } = query
     if (!id) return res.status(400).json({ error: 'id required' })
 
-    const { error } = await supabase.from('contents').delete().eq('id', id)
+    const { error } = await supabase.from('contents').delete().eq('id', id).eq('user_id', user.id)
     if (error) return res.status(400).json({ error: error.message })
     return res.json({ ok: true })
   }
