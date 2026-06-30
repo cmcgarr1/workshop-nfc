@@ -471,21 +471,6 @@ export default function ScanPage() {
                 </div>
 
                 <div className="card">
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                    <div className="section-label" style={{ marginBottom: 0 }}>
-                      Contents log ({contents.length})
-                    </div>
-                    {loggedIn && (
-                      <button
-                        className="btn-ghost"
-                        style={{ padding: '5px 10px', fontSize: 12, display: 'flex', alignItems: 'center', gap: 5 }}
-                        onClick={() => setShowAddContent(s => !s)}
-                      >
-                        <IconPlus /> Add item
-                      </button>
-                    )}
-                  </div>
-
                   {showAddContent && (
                     <div style={{ background: 'var(--bg2)', borderRadius: 'var(--radius-sm)', padding: 12, marginBottom: 12 }}>
                       <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, fontSize: 13, cursor: 'pointer' }}>
@@ -588,7 +573,9 @@ export default function ScanPage() {
                                 {loggedIn && (
                                   <td style={{ padding: '6px 8px' }} onClick={e => e.stopPropagation()}>
                                     <button className="btn-ghost" style={{ padding: '3px 7px' }} onClick={() => deleteContentItem(row.id)}>
-                                      <IconTrash />
+                                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+                                      </svg>
                                     </button>
                                   </td>
                                 )}
@@ -614,7 +601,12 @@ export default function ScanPage() {
                   </div>
                 )}
 
-                <div className="action-grid" style={{ gridTemplateColumns: loggedIn ? '1fr 1fr 1fr' : '1fr' }}>
+                <div className="action-grid" style={{ gridTemplateColumns: loggedIn ? '1fr 1fr 1fr 1fr' : '1fr' }}>
+                  {loggedIn && (
+                    <button className="action-btn" onClick={() => setShowAddContent(s => !s)}>
+                      <IconPlus /> Add item
+                    </button>
+                  )}
                   {loggedIn && (
                     <button className="action-btn" onClick={() => { setView('edit'); apiFetch('/api/items').then(r=>r.json()).then(d=>setAllItems(d.items||[])) }}>
                       <IconEdit /> Edit
