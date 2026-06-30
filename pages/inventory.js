@@ -3,9 +3,11 @@ import { useRouter } from 'next/router'
 import Head from 'next/head'
 import { IconPackage, IconLayers, IconArrowRight, IconPlus, IconTool } from '../lib/icons'
 import { apiFetch } from '../lib/apiFetch'
+import { useAuth } from './_app'
 
 export default function InventoryPage() {
   const router = useRouter()
+  const { loggedIn } = useAuth()
   const [items, setItems] = useState([])
   const [filter, setFilter] = useState('all')
   const [loading, setLoading] = useState(true)
@@ -308,9 +310,11 @@ export default function InventoryPage() {
           </>
         )}
 
-        <button className="fab" onClick={() => router.push('/new-tag')} aria-label="Generate new tag">
-          <IconPlus />
-        </button>
+        {loggedIn && (
+          <button className="fab" onClick={() => router.push('/new-tag')} aria-label="Generate new tag">
+            <IconPlus />
+          </button>
+        )}
       </div>
     </>
   )

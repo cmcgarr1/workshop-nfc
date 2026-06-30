@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/router'
 import Head from 'next/head'
 import { IconTool, IconArrowLeft, IconPlus, IconCheck } from '../lib/icons'
+import { apiFetch } from '../lib/apiFetch'
+import { useAuth } from './_app'
 
 function IconPencil() {
   return (
@@ -44,6 +46,7 @@ export async function getServerSideProps() {
 
 export default function ContentsPage() {
   const router = useRouter()
+  const { loggedIn } = useAuth()
   const [contents, setContents] = useState([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -64,17 +67,17 @@ export default function ContentsPage() {
   const [sortDir, setSortDir] = useState('desc')
 
   function loadContents() {
-    fetch('/api/contents')
+    apiFetch('/api/contents')
       .then(r => r.json())
       .then(d => { setContents(d.contents || []); setLoading(false) })
   }
 
   useEffect(() => {
     loadContents()
-    fetch('/api/items')
+    apiFetch('/api/items')
       .then(r => r.json())
       .then(d => setContainers((d.items || []).filter(i => i.type === 'container')))
-    fetch('/api/contents?categories_only=1')
+    apiFetch('/api/contents?categories_only=1')
       .then(r => r.json())
       .then(d => setCategorySuggestions(d.categories || []))
   }, [])
@@ -110,12 +113,12 @@ export default function ContentsPage() {
     setSaving(true)
     const payload = { ...form, parent_item_id: form.parent_item_id || null }
     const r = editingId
-      ? await fetch(`/api/contents?id=${editingId}`, {
+      ? await apiFetch(`/api/contents?id=${editingId}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         })
-      : await fetch('/api/contents', {
+      : await apiFetch('/api/contents', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
@@ -132,7 +135,7 @@ export default function ContentsPage() {
 
   async function deleteRow(id) {
     if (!confirm('Remove this item from your contents log?')) return
-    await fetch(`/api/contents?id=${id}`, { method: 'DELETE' })
+    await apiFetch(`/api/contents?id=${id}`, { method: 'DELETE' })
     setContents(c => c.filter(r => r.id !== id))
   }
 
@@ -182,7 +185,7 @@ export default function ContentsPage() {
     { key: 'date_acquired', label: 'Date acquired' },
     { key: 'box_name', label: 'Box' },
     { key: 'location_name', label: 'Location' },
-    { key: null, label: '' }
+    ...(loggedIn ? [{ key: null, label: '' }] : [])
   ]
 
   const filtered = contents
@@ -239,13 +242,15 @@ export default function ContentsPage() {
             onChange={e => setSearch(e.target.value)}
             style={{ flex: 1 }}
           />
-          <button
-            className="btn-primary"
-            style={{ display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}
-            onClick={openAddForm}
-          >
-            <IconPlus /> Add item
-          </button>
+          {loggedIn && (
+            <button
+              className="btn-primary"
+              style={{ display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}
+              onClick={openAddForm}
+            >
+              <IconPlus /> Add item
+            </button>
+          )}
         </div>
 
         {activeFilterCount > 0 && (
@@ -402,14 +407,16 @@ export default function ContentsPage() {
                         : <span style={{ color: 'var(--text3)' }}>—</span>
                       }
                     </td>
-                    <td style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>
-                      <button className="btn-ghost" style={{ padding: '4px 8px' }} onClick={() => openEditForm(row)}>
-                        <IconPencil />
-                      </button>
-                      <button className="btn-ghost" style={{ padding: '4px 8px' }} onClick={() => deleteRow(row.id)}>
-                        <IconTrashCan />
-                      </button>
-                    </td>
+                    {loggedIn && (
+                      <td style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>
+                        <button className="btn-ghost" style={{ padding: '4px 8px' }} onClick={() => openEditForm(row)}>
+                          <IconPencil />
+                        </button>
+                        <button className="btn-ghost" style={{ padding: '4px 8px' }} onClick={() => deleteRow(row.id)}>
+                          <IconTrashCan />
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>

@@ -5,6 +5,7 @@ import {
   IconNfc, IconTag, IconArrowLeft, IconCheck, IconArrowRight, IconTool
 } from '../lib/icons'
 import { apiFetch } from '../lib/apiFetch'
+import { useAuth } from './_app'
 
 // Always use the real production domain, regardless of which URL
 // (preview deployment, vercel.app auto-alias, localhost, etc.) the
@@ -54,10 +55,15 @@ function useQrCode(text) {
 
 export default function NewTagPage() {
   const router = useRouter()
+  const { loggedIn } = useAuth()
   const [name, setName] = useState('')
   const [id, setId] = useState('')
   const [copied, setCopied] = useState(false)
   const [existingIds, setExistingIds] = useState([])
+
+  useEffect(() => {
+    if (loggedIn === false) router.replace('/login')
+  }, [loggedIn])
 
   useEffect(() => {
     apiFetch('/api/items')
@@ -69,6 +75,8 @@ export default function NewTagPage() {
   const url = id ? `${PRODUCTION_ORIGIN}/scan?id=${id}` : ''
   const { canvasRef, ready } = useQrCode(url)
   const isDuplicate = id && existingIds.includes(id)
+
+  if (!loggedIn) return null
 
   function handleNameChange(e) {
     const newName = e.target.value

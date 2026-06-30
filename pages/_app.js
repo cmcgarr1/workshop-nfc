@@ -1,7 +1,13 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, createContext, useContext } from 'react'
 import { useRouter } from 'next/router'
 import '../styles/globals.css'
 import { supabase } from '../lib/supabase'
+
+// Lets any page check "am I the signed-in owner right now?" via useAuth().
+const AuthContext = createContext({ session: undefined })
+export function useAuth() {
+  return useContext(AuthContext)
+}
 
 export default function App({ Component, pageProps }) {
   const router = useRouter()
@@ -17,33 +23,32 @@ export default function App({ Component, pageProps }) {
     return () => listener.subscription.unsubscribe()
   }, [])
 
-  useEffect(() => {
-    if (session === undefined) return // still loading
-    if (!session && router.pathname !== '/login') {
-      router.replace('/login')
-    }
-  }, [session, router.pathname])
-
-  // Still checking session — render nothing to avoid a flash of protected content
-  if (session === undefined) return null
-
-  // Logged out and not yet redirected — render nothing
-  if (!session && router.pathname !== '/login') return null
+  const loggedIn = !!session
 
   return (
-    <>
-      {session && router.pathname !== '/login' && (
+    <AuthContext.Provider value={{ session, loggedIn }}>
+      {session !== undefined && router.pathname !== '/login' && (
         <div style={{ position: 'fixed', top: 10, right: 16, zIndex: 50 }}>
-          <button
-            className="btn-ghost"
-            style={{ fontSize: 12, padding: '6px 10px' }}
-            onClick={() => supabase.auth.signOut()}
-          >
-            Sign out
-          </button>
+          {loggedIn ? (
+            <button
+              className="btn-ghost"
+              style={{ fontSize: 12, padding: '6px 10px' }}
+              onClick={() => supabase.auth.signOut()}
+            >
+              Sign out
+            </button>
+          ) : (
+            <button
+              className="btn-ghost"
+              style={{ fontSize: 12, padding: '6px 10px' }}
+              onClick={() => router.push('/login')}
+            >
+              Sign in to edit
+            </button>
+          )}
         </div>
       )}
       <Component {...pageProps} />
-    </>
+    </AuthContext.Provider>
   )
 }

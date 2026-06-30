@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/router'
 import Head from 'next/head'
 import {
@@ -7,6 +7,7 @@ import {
   IconSitemap, IconTrash, IconTool, IconArrowRight, IconPlus
 } from '../lib/icons'
 import { apiFetch } from '../lib/apiFetch'
+import { useAuth } from './_app'
 
 function genId(name) {
   const base = name
@@ -17,6 +18,7 @@ function genId(name) {
 
 export default function ScanPage() {
   const router = useRouter()
+  const { loggedIn } = useAuth()
   const { id, prefill_name } = router.query
 
   const [status, setStatus] = useState('loading')
@@ -31,8 +33,6 @@ export default function ScanPage() {
   const [saving, setSaving] = useState(false)
 
   const [contents, setContents] = useState([])
-  const [uploadingPhoto, setUploadingPhoto] = useState(false)
-  const photoInputRef = useRef(null)
   const [categorySuggestions, setCategorySuggestions] = useState([])
   const [showAddContent, setShowAddContent] = useState(false)
   const [contentForm, setContentForm] = useState({ item_name: '', description: '', category: '', date_acquired: '', is_category: false })
@@ -106,21 +106,6 @@ export default function ScanPage() {
     setChildren([])
     setStatus('known')
     showToast('Tag registered!')
-  }
-
-  async function uploadPhoto(file) {
-    if (!file) return
-    setUploadingPhoto(true)
-    const r = await apiFetch(`/api/upload-photo?id=${encodeURIComponent(item.id)}`, {
-      method: 'POST',
-      headers: { 'Content-Type': file.type || 'image/jpeg' },
-      body: file
-    })
-    const data = await r.json()
-    setUploadingPhoto(false)
-    if (!r.ok) return alert(data.error)
-    setItem(data.item)
-    showToast('Photo saved!')
   }
 
   async function saveEdit() {
@@ -241,7 +226,13 @@ export default function ScanPage() {
           <div className="error-box">Something went wrong. Try scanning again.</div>
         )}
 
-        {status === 'new' && (
+        {status === 'new' && !loggedIn && (
+          <div className="error-box">
+            This tag isn't registered yet. <a onClick={() => router.push('/login')} style={{ textDecoration: 'underline', cursor: 'pointer' }}>Sign in</a> to add it to the workshop.
+          </div>
+        )}
+
+        {status === 'new' && loggedIn && (
           <>
             <div className="flash new">
               <div className="flash-icon"><IconNfc /></div>
@@ -350,44 +341,6 @@ export default function ScanPage() {
                     </span>
                   </div>
 
-                  <div style={{ marginBottom: 14 }}>
-                    {item.image_url ? (
-                      <img
-                        src={item.image_url}
-                        alt={item.name}
-                        style={{ width: '100%', maxHeight: 220, objectFit: 'cover', borderRadius: 'var(--radius-sm)', cursor: 'pointer' }}
-                        onClick={() => photoInputRef.current?.click()}
-                      />
-                    ) : (
-                      <button
-                        className="btn-ghost"
-                        style={{ width: '100%' }}
-                        onClick={() => photoInputRef.current?.click()}
-                        disabled={uploadingPhoto}
-                      >
-                        {uploadingPhoto ? 'Uploading…' : `Add photo of inside`}
-                      </button>
-                    )}
-                    {item.image_url && (
-                      <button
-                        className="btn-ghost"
-                        style={{ width: '100%', marginTop: 6, fontSize: 12 }}
-                        onClick={() => photoInputRef.current?.click()}
-                        disabled={uploadingPhoto}
-                      >
-                        {uploadingPhoto ? 'Uploading…' : 'Replace photo'}
-                      </button>
-                    )}
-                    <input
-                      ref={photoInputRef}
-                      type="file"
-                      accept="image/*"
-                      capture="environment"
-                      style={{ display: 'none' }}
-                      onChange={e => uploadPhoto(e.target.files[0])}
-                    />
-                  </div>
-
                   <div className="meta">
                     {item.notes && (
                       <div className="meta-row">
@@ -421,13 +374,15 @@ export default function ScanPage() {
                     <div className="section-label" style={{ marginBottom: 0 }}>
                       Contents log ({contents.length})
                     </div>
-                    <button
-                      className="btn-ghost"
-                      style={{ padding: '5px 10px', fontSize: 12, display: 'flex', alignItems: 'center', gap: 5 }}
-                      onClick={() => setShowAddContent(s => !s)}
-                    >
-                      <IconPlus /> Add item
-                    </button>
+                    {loggedIn && (
+                      <button
+                        className="btn-ghost"
+                        style={{ padding: '5px 10px', fontSize: 12, display: 'flex', alignItems: 'center', gap: 5 }}
+                        onClick={() => setShowAddContent(s => !s)}
+                      >
+                        <IconPlus /> Add item
+                      </button>
+                    )}
                   </div>
 
                   {showAddContent && (
@@ -511,7 +466,7 @@ export default function ScanPage() {
                       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                         <thead>
                           <tr style={{ borderBottom: '1px solid var(--border2)', textAlign: 'left' }}>
-                            {['Item', 'Description', 'Category', 'Added', 'Acquired', ''].map(h => (
+                            {['Item', 'Description', 'Category', 'Added', 'Acquired', ...(loggedIn ? [''] : [])].map(h => (
                               <th key={h} style={{ padding: '6px 8px', color: 'var(--text2)', fontWeight: 500, whiteSpace: 'nowrap' }}>{h}</th>
                             ))}
                           </tr>
@@ -532,11 +487,13 @@ export default function ScanPage() {
                               <td style={{ padding: '6px 8px', whiteSpace: 'nowrap' }}>
                                 {row.date_acquired ? new Date(row.date_acquired).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '—'}
                               </td>
-                              <td style={{ padding: '6px 8px' }}>
-                                <button className="btn-ghost" style={{ padding: '3px 7px' }} onClick={() => deleteContentItem(row.id)}>
-                                  <IconTrash />
-                                </button>
-                              </td>
+                              {loggedIn && (
+                                <td style={{ padding: '6px 8px' }}>
+                                  <button className="btn-ghost" style={{ padding: '3px 7px' }} onClick={() => deleteContentItem(row.id)}>
+                                    <IconTrash />
+                                  </button>
+                                </td>
+                              )}
                             </tr>
                           ))}
                         </tbody>
@@ -558,13 +515,17 @@ export default function ScanPage() {
                   </div>
                 )}
 
-                <div className="action-grid">
-                  <button className="action-btn" onClick={() => { setView('edit'); apiFetch('/api/items').then(r=>r.json()).then(d=>setAllItems(d.items||[])) }}>
-                    <IconEdit /> Edit
-                  </button>
-                  <button className="action-btn" onClick={() => { setView('move'); apiFetch('/api/items').then(r=>r.json()).then(d=>setAllItems(d.items||[])) }}>
-                    <IconMove /> Move
-                  </button>
+                <div className="action-grid" style={{ gridTemplateColumns: loggedIn ? '1fr 1fr 1fr' : '1fr' }}>
+                  {loggedIn && (
+                    <button className="action-btn" onClick={() => { setView('edit'); apiFetch('/api/items').then(r=>r.json()).then(d=>setAllItems(d.items||[])) }}>
+                      <IconEdit /> Edit
+                    </button>
+                  )}
+                  {loggedIn && (
+                    <button className="action-btn" onClick={() => { setView('move'); apiFetch('/api/items').then(r=>r.json()).then(d=>setAllItems(d.items||[])) }}>
+                      <IconMove /> Move
+                    </button>
+                  )}
                   <button className="action-btn primary" onClick={() => router.push('/inventory')}>
                     <IconList /> Inventory
                   </button>
