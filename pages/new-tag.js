@@ -105,7 +105,14 @@ export default function NewTagPage() {
         <meta name="theme-color" content="#ffffff" />
       </Head>
 
-      <div className="page">
+      <div className="page" style={{ paddingTop: 64 }}>
+
+        <div className="back-link" onClick={() => router.push("/inventory")}>
+          <IconArrowLeft /> Back
+        </div>
+
+        <div className="flash new">
+          <div className="flash-icon"><IconNfc /></div>
           <div>
             <p>New tag URL ready</p>
             <span>Write it to a blank NFC tag</span>

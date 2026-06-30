@@ -216,7 +216,9 @@ export default function InventoryPage() {
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
       </Head>
 
-      <div className="page">
+      <div className="page" style={{ paddingTop: 64 }}>
+
+        <div className="filter-row">
           <button className="filter-btn active" style={{ flex: 1, textAlign: 'center' }}>
             Shop hierarchy
           </button>
