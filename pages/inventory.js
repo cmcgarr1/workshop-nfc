@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/router'
 import Head from 'next/head'
 import { IconPackage, IconLayers, IconArrowRight, IconPlus, IconTool } from '../lib/icons'
+import { apiFetch } from '../lib/apiFetch'
 
 export default function InventoryPage() {
   const router = useRouter()
@@ -13,10 +14,10 @@ export default function InventoryPage() {
   const [allContents, setAllContents] = useState([])
 
   useEffect(() => {
-    fetch('/api/items')
+    apiFetch('/api/items')
       .then(r => r.json())
       .then(d => { setItems(d.items || []); setLoading(false) })
-    fetch('/api/contents')
+    apiFetch('/api/contents')
       .then(r => r.json())
       .then(d => setAllContents(d.contents || []))
   }, [])
@@ -56,7 +57,7 @@ export default function InventoryPage() {
         idsNeeded.forEach(needId => {
           if (!contentsCache[needId] && !contentsLoading[needId]) {
             setContentsLoading(l => ({ ...l, [needId]: true }))
-            fetch(`/api/contents?parent_item_id=${encodeURIComponent(needId)}`)
+            apiFetch(`/api/contents?parent_item_id=${encodeURIComponent(needId)}`)
               .then(r => r.json())
               .then(d => {
                 setContentsCache(c => ({ ...c, [needId]: d.contents || [] }))

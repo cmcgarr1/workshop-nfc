@@ -4,6 +4,7 @@ import Head from 'next/head'
 import {
   IconNfc, IconTag, IconArrowLeft, IconCheck, IconArrowRight, IconTool
 } from '../lib/icons'
+import { apiFetch } from '../lib/apiFetch'
 
 // Always use the real production domain, regardless of which URL
 // (preview deployment, vercel.app auto-alias, localhost, etc.) the
@@ -59,7 +60,7 @@ export default function NewTagPage() {
   const [existingIds, setExistingIds] = useState([])
 
   useEffect(() => {
-    fetch('/api/items')
+    apiFetch('/api/items')
       .then(r => r.json())
       .then(d => setExistingIds((d.items || []).map(i => i.id)))
       .catch(() => {})
