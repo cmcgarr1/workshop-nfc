@@ -217,12 +217,6 @@ export default function InventoryPage() {
       </Head>
 
       <div className="page">
-        <div className="topbar">
-          <div className="topbar-logo"><IconTool /></div>
-          <h1>Workshop</h1>
-        </div>
-
-        <div className="filter-row">
           <button className="filter-btn active" style={{ flex: 1, textAlign: 'center' }}>
             Shop hierarchy
           </button>

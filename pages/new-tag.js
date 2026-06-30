@@ -106,22 +106,6 @@ export default function NewTagPage() {
       </Head>
 
       <div className="page">
-        <div className="topbar">
-          <div className="topbar-logo">
-            <IconTool />
-          </div>
-          <h1>Workshop</h1>
-          <span className="topbar-sub" style={{ cursor: 'pointer' }} onClick={() => router.push('/inventory')}>
-            Inventory →
-          </span>
-        </div>
-
-        <div className="back-link" onClick={() => router.push('/inventory')}>
-          <IconArrowLeft /> Back
-        </div>
-
-        <div className="flash new">
-          <div className="flash-icon"><IconNfc /></div>
           <div>
             <p>New tag URL ready</p>
             <span>Write it to a blank NFC tag</span>
