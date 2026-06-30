@@ -258,7 +258,7 @@ export default function ScanPage() {
         <meta name="theme-color" content="#ffffff" />
       </Head>
 
-      <div className="page">
+      <div className="page" style={{ paddingTop: 64 }}>
 
         {status === 'loading' && (
           <div className="loading">
