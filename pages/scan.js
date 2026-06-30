@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/router'
 import Head from 'next/head'
 import {
@@ -6,6 +6,7 @@ import {
   IconMove, IconList, IconArrowLeft, IconTag, IconNote,
   IconSitemap, IconTrash, IconTool, IconArrowRight, IconPlus
 } from '../lib/icons'
+import { apiFetch } from '../lib/apiFetch'
 
 function genId(name) {
   const base = name
@@ -30,20 +31,22 @@ export default function ScanPage() {
   const [saving, setSaving] = useState(false)
 
   const [contents, setContents] = useState([])
+  const [uploadingPhoto, setUploadingPhoto] = useState(false)
+  const photoInputRef = useRef(null)
   const [categorySuggestions, setCategorySuggestions] = useState([])
   const [showAddContent, setShowAddContent] = useState(false)
   const [contentForm, setContentForm] = useState({ item_name: '', description: '', category: '', date_acquired: '', is_category: false })
   const [addingContent, setAddingContent] = useState(false)
 
   function loadContents(parentId) {
-    fetch(`/api/contents?parent_item_id=${encodeURIComponent(parentId)}`)
+    apiFetch(`/api/contents?parent_item_id=${encodeURIComponent(parentId)}`)
       .then(r => r.json())
       .then(d => setContents(d.contents || []))
   }
 
   useEffect(() => {
     if (!id) return
-    fetch(`/api/items?id=${encodeURIComponent(id)}`)
+    apiFetch(`/api/items?id=${encodeURIComponent(id)}`)
       .then(r => {
         if (r.status === 404) {
           setStatus('new')
@@ -67,7 +70,7 @@ export default function ScanPage() {
           notes: data.item.notes || ''
         })
         loadContents(data.item.id)
-        fetch('/api/contents?categories_only=1')
+        apiFetch('/api/contents?categories_only=1')
           .then(r => r.json())
           .then(d => setCategorySuggestions(d.categories || []))
       })
@@ -76,7 +79,7 @@ export default function ScanPage() {
 
   useEffect(() => {
     if (status === 'new' || view === 'edit' || view === 'move') {
-      fetch('/api/items')
+      apiFetch('/api/items')
         .then(r => r.json())
         .then(d => setAllItems(d.items || []))
     }
@@ -91,7 +94,7 @@ export default function ScanPage() {
     if (!form.name.trim()) return alert('Please enter a name')
     if (!form.id.trim()) return alert('Please enter an ID')
     setSaving(true)
-    const r = await fetch('/api/items', {
+    const r = await apiFetch('/api/items', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...form, parent_id: form.parent_id || null })
@@ -105,9 +108,24 @@ export default function ScanPage() {
     showToast('Tag registered!')
   }
 
+  async function uploadPhoto(file) {
+    if (!file) return
+    setUploadingPhoto(true)
+    const r = await apiFetch(`/api/upload-photo?id=${encodeURIComponent(item.id)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': file.type || 'image/jpeg' },
+      body: file
+    })
+    const data = await r.json()
+    setUploadingPhoto(false)
+    if (!r.ok) return alert(data.error)
+    setItem(data.item)
+    showToast('Photo saved!')
+  }
+
   async function saveEdit() {
     setSaving(true)
-    const r = await fetch(`/api/items?id=${encodeURIComponent(id)}`, {
+    const r = await apiFetch(`/api/items?id=${encodeURIComponent(id)}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...editForm, parent_id: editForm.parent_id || null })
@@ -121,7 +139,7 @@ export default function ScanPage() {
   }
 
   async function moveItem(newParentId) {
-    const r = await fetch(`/api/items?id=${encodeURIComponent(id)}`, {
+    const r = await apiFetch(`/api/items?id=${encodeURIComponent(id)}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...item, parent_id: newParentId || null })
@@ -146,7 +164,7 @@ export default function ScanPage() {
     }
 
     setAddingContent(true)
-    const r = await fetch('/api/contents', {
+    const r = await apiFetch('/api/contents', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...payload, parent_item_id: item.id })
@@ -166,7 +184,7 @@ export default function ScanPage() {
 
   async function deleteContentItem(id) {
     if (!confirm('Remove this item from the contents list?')) return
-    await fetch(`/api/contents?id=${id}`, { method: 'DELETE' })
+    await apiFetch(`/api/contents?id=${id}`, { method: 'DELETE' })
     loadContents(item.id)
   }
 
@@ -184,7 +202,7 @@ export default function ScanPage() {
 
   async function runDelete(cascade) {
     setDeleting(true)
-    await fetch(`/api/items?id=${encodeURIComponent(id)}${cascade ? '&cascade=true' : ''}`, { method: 'DELETE' })
+    await apiFetch(`/api/items?id=${encodeURIComponent(id)}${cascade ? '&cascade=true' : ''}`, { method: 'DELETE' })
     setDeleting(false)
     router.push('/inventory')
   }
@@ -330,6 +348,44 @@ export default function ScanPage() {
                     >
                       {item.type === 'location' ? 'Location' : 'Container'}
                     </span>
+                  </div>
+
+                  <div style={{ marginBottom: 14 }}>
+                    {item.image_url ? (
+                      <img
+                        src={item.image_url}
+                        alt={item.name}
+                        style={{ width: '100%', maxHeight: 220, objectFit: 'cover', borderRadius: 'var(--radius-sm)', cursor: 'pointer' }}
+                        onClick={() => photoInputRef.current?.click()}
+                      />
+                    ) : (
+                      <button
+                        className="btn-ghost"
+                        style={{ width: '100%' }}
+                        onClick={() => photoInputRef.current?.click()}
+                        disabled={uploadingPhoto}
+                      >
+                        {uploadingPhoto ? 'Uploading…' : `Add photo of inside`}
+                      </button>
+                    )}
+                    {item.image_url && (
+                      <button
+                        className="btn-ghost"
+                        style={{ width: '100%', marginTop: 6, fontSize: 12 }}
+                        onClick={() => photoInputRef.current?.click()}
+                        disabled={uploadingPhoto}
+                      >
+                        {uploadingPhoto ? 'Uploading…' : 'Replace photo'}
+                      </button>
+                    )}
+                    <input
+                      ref={photoInputRef}
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      style={{ display: 'none' }}
+                      onChange={e => uploadPhoto(e.target.files[0])}
+                    />
                   </div>
 
                   <div className="meta">
@@ -503,10 +559,10 @@ export default function ScanPage() {
                 )}
 
                 <div className="action-grid">
-                  <button className="action-btn" onClick={() => { setView('edit'); fetch('/api/items').then(r=>r.json()).then(d=>setAllItems(d.items||[])) }}>
+                  <button className="action-btn" onClick={() => { setView('edit'); apiFetch('/api/items').then(r=>r.json()).then(d=>setAllItems(d.items||[])) }}>
                     <IconEdit /> Edit
                   </button>
-                  <button className="action-btn" onClick={() => { setView('move'); fetch('/api/items').then(r=>r.json()).then(d=>setAllItems(d.items||[])) }}>
+                  <button className="action-btn" onClick={() => { setView('move'); apiFetch('/api/items').then(r=>r.json()).then(d=>setAllItems(d.items||[])) }}>
                     <IconMove /> Move
                   </button>
                   <button className="action-btn primary" onClick={() => router.push('/inventory')}>
