@@ -359,7 +359,7 @@ export default function ScanPage() {
 
         {status === 'known' && item && (
           <>
-            {view === 'main' && (
+            {(view === 'main' || view === 'edit') && (
               <>
                 <div className="flash known">
                   <div className="flash-icon"><IconCheck /></div>
