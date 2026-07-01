@@ -67,12 +67,27 @@ export default function ContentsPage() {
   const [sortKey, setSortKey] = useState('date_added')
   const [sortDir, setSortDir] = useState('desc')
 
+  const readyRef = useRef(false)
+
   console.log('[open-trace] RENDER — openFilterCol=', openFilterCol, 'loading=', loading, 'loggedIn=', loggedIn, 't=', Date.now())
 
   useEffect(() => {
     console.log('[open-trace] ContentsPage MOUNTED at', Date.now())
     setOpenFilterCol(null)
+    const timer = setTimeout(() => { readyRef.current = true }, 600)
+    return () => clearTimeout(timer)
   }, [])
+
+  // Safety net: if something forces the dropdown open before the page has
+  // settled (e.g. a stray/late click carried over from the previous page),
+  // immediately close it rather than showing a phantom empty dropdown.
+  useEffect(() => {
+    if (openFilterCol && !readyRef.current) {
+      console.log('[open-trace] BLOCKED early/unexpected open of', openFilterCol)
+      setOpenFilterCol(null)
+    }
+  }, [openFilterCol])
+
   const filterBtnRefs = useRef({})
 
   useLayoutEffect(() => {
@@ -352,7 +367,7 @@ export default function ContentsPage() {
                           </button>
                         )}
 
-                        {openFilterCol === col.key && (
+                        {isFilterable && openFilterCol === col.key && (
                           <>
                             <div
                               style={{ position: 'fixed', inset: 0, zIndex: 200 }}
