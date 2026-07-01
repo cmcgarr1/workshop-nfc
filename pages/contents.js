@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useLayoutEffect } from 'react'
 import { useRouter } from 'next/router'
 import Head from 'next/head'
-import { IconTool, IconArrowLeft, IconPlus, IconCheck } from '../lib/icons'
+import { IconArrowLeft, IconPlus, IconCheck } from '../lib/icons'
 import { apiFetch } from '../lib/apiFetch'
 import { useAuth } from './_app'
 
@@ -72,13 +72,8 @@ export default function ContentsPage() {
     if (!openFilterCol) return
     function reposition() {
       const btn = filterBtnRefs.current[openFilterCol]
-      console.log('[filter-debug] openFilterCol=', openFilterCol, 'btn=', btn, 'allRefKeys=', Object.keys(filterBtnRefs.current))
-      if (!btn) {
-        console.log('[filter-debug] BAILING — no button ref found for', openFilterCol)
-        return
-      }
+      if (!btn) return
       const rect = btn.getBoundingClientRect()
-      console.log('[filter-debug] rect=', rect)
       const left = Math.min(rect.left, window.innerWidth - 236)
       setFilterPos({ top: rect.bottom + 6, left: Math.max(left, 8) })
     }
@@ -249,12 +244,7 @@ export default function ContentsPage() {
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
       </Head>
 
-      <div className="page" style={{ maxWidth: 900 }}>
-        <div className="topbar">
-          <div className="topbar-logo"><IconTool /></div>
-          <h1>Workshop</h1>
-        </div>
-
+      <div className="page" style={{ maxWidth: 900, paddingTop: 64 }}>
         <div className="filter-row">
           <button className="filter-btn" style={{ flex: 1, textAlign: 'center' }} onClick={() => router.push('/inventory')}>
             Shop hierarchy
@@ -334,10 +324,7 @@ export default function ContentsPage() {
 
                         {isFilterable && (
                           <button
-                            ref={el => {
-                              filterBtnRefs.current[col.key] = el
-                              console.log('[filter-debug] ref callback for', col.key, '->', el)
-                            }}
+                            ref={el => { filterBtnRefs.current[col.key] = el }}
                             className="btn-ghost"
                             style={{
                               padding: '2px 5px',
