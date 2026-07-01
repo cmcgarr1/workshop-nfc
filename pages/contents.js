@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useLayoutEffect } from 'react'
 import { useRouter } from 'next/router'
 import Head from 'next/head'
 import { IconTool, IconArrowLeft, IconPlus, IconCheck } from '../lib/icons'
@@ -65,6 +65,21 @@ export default function ContentsPage() {
   const [filterPos, setFilterPos] = useState({ top: 0, left: 0 })
   const [sortKey, setSortKey] = useState('date_added')
   const [sortDir, setSortDir] = useState('desc')
+  const filterBtnRefs = useRef({})
+
+  useLayoutEffect(() => {
+    if (!openFilterCol) return
+    function reposition() {
+      const btn = filterBtnRefs.current[openFilterCol]
+      if (!btn) return
+      const rect = btn.getBoundingClientRect()
+      const left = Math.min(rect.left, window.innerWidth - 236)
+      setFilterPos({ top: rect.bottom + 6, left: Math.max(left, 8) })
+    }
+    reposition()
+    window.addEventListener('resize', reposition)
+    return () => window.removeEventListener('resize', reposition)
+  }, [openFilterCol])
 
   function loadContents() {
     apiFetch('/api/contents')
@@ -303,6 +318,7 @@ export default function ContentsPage() {
 
                         {isFilterable && (
                           <button
+                            ref={el => { filterBtnRefs.current[col.key] = el }}
                             className="btn-ghost"
                             style={{
                               padding: '2px 5px',
@@ -313,15 +329,8 @@ export default function ContentsPage() {
                             }}
                             onClick={e => {
                               e.stopPropagation()
-                              if (openFilterCol === col.key) {
-                                setOpenFilterCol(null)
-                                return
-                              }
-                              const rect = e.currentTarget.getBoundingClientRect()
-                              const left = Math.min(rect.left, window.innerWidth - 236)
-                              setFilterPos({ top: rect.bottom + 6, left: Math.max(left, 8) })
                               setFilterSearch('')
-                              setOpenFilterCol(col.key)
+                              setOpenFilterCol(prev => (prev === col.key ? null : col.key))
                             }}
                           >
                             <IconFilter active={colActive} />
