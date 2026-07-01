@@ -203,7 +203,7 @@ export default function ContentsPage() {
     ...(loggedIn ? [{ key: null, label: '' }] : [])
   ]
 
-  const filterableKeys = ['category', 'box_name']
+  const filterableKeys = ['item_name', 'description', 'category', 'date_added', 'date_acquired', 'box_name', 'path']
 
   const filtered = contents
     .filter(r => {
@@ -292,8 +292,10 @@ export default function ContentsPage() {
                     const isFilterable = filterableKeys.includes(col.key)
                     const colActive = (filters[col.key] || []).length > 0
                     const colValues = isFilterable ? uniqueValues(col.key) : []
+                    const isDateCol = col.key === 'date_added' || col.key === 'date_acquired'
+                    const filterLabel = v => (isDateCol ? fmtDate(v) : v)
                     const visibleValues = openFilterCol === col.key
-                      ? colValues.filter(v => v.toLowerCase().includes(filterSearch.toLowerCase()))
+                      ? colValues.filter(v => filterLabel(v).toLowerCase().includes(filterSearch.toLowerCase()))
                       : []
                     const selected = filters[col.key] || []
 
@@ -384,7 +386,7 @@ export default function ContentsPage() {
                                       checked={selected.includes(val)}
                                       onChange={() => toggleFilterValue(col.key, val)}
                                     />
-                                    {val}
+                                    {filterLabel(val)}
                                   </label>
                                 ))}
                               </div>
