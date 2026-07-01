@@ -69,10 +69,7 @@ export default function ContentsPage() {
 
   const readyRef = useRef(false)
 
-  console.log('[open-trace] RENDER — openFilterCol=', openFilterCol, 'loading=', loading, 'loggedIn=', loggedIn, 't=', Date.now())
-
   useEffect(() => {
-    console.log('[open-trace] ContentsPage MOUNTED at', Date.now())
     setOpenFilterCol(null)
     const timer = setTimeout(() => { readyRef.current = true }, 600)
     return () => clearTimeout(timer)
@@ -83,7 +80,6 @@ export default function ContentsPage() {
   // immediately close it rather than showing a phantom empty dropdown.
   useEffect(() => {
     if (openFilterCol && !readyRef.current) {
-      console.log('[open-trace] BLOCKED early/unexpected open of', openFilterCol)
       setOpenFilterCol(null)
     }
   }, [openFilterCol])
@@ -356,8 +352,6 @@ export default function ContentsPage() {
                               background: colActive ? 'var(--purple-bg)' : 'transparent'
                             }}
                             onClick={e => {
-                              console.log('[open-trace] filter button clicked, isTrusted=', e.isTrusted, 'col=', col.key, 'timeStamp=', e.timeStamp)
-                              console.trace('[open-trace] call stack')
                               e.stopPropagation()
                               setFilterSearch('')
                               setOpenFilterCol(prev => (prev === col.key ? null : col.key))
