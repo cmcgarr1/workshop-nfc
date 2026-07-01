@@ -72,8 +72,13 @@ export default function ContentsPage() {
     if (!openFilterCol) return
     function reposition() {
       const btn = filterBtnRefs.current[openFilterCol]
-      if (!btn) return
+      console.log('[filter-debug] openFilterCol=', openFilterCol, 'btn=', btn, 'allRefKeys=', Object.keys(filterBtnRefs.current))
+      if (!btn) {
+        console.log('[filter-debug] BAILING — no button ref found for', openFilterCol)
+        return
+      }
       const rect = btn.getBoundingClientRect()
+      console.log('[filter-debug] rect=', rect)
       const left = Math.min(rect.left, window.innerWidth - 236)
       setFilterPos({ top: rect.bottom + 6, left: Math.max(left, 8) })
     }
@@ -329,7 +334,10 @@ export default function ContentsPage() {
 
                         {isFilterable && (
                           <button
-                            ref={el => { filterBtnRefs.current[col.key] = el }}
+                            ref={el => {
+                              filterBtnRefs.current[col.key] = el
+                              console.log('[filter-debug] ref callback for', col.key, '->', el)
+                            }}
                             className="btn-ghost"
                             style={{
                               padding: '2px 5px',
