@@ -34,7 +34,7 @@ function IconFilter({ active }) {
   )
 }
 
-const emptyForm = { item_name: '', description: '', category: '', date_acquired: '', parent_item_id: '' }
+const emptyForm = { item_name: '', description: '', category: '', parent_item_id: '' }
 
 // This page fetches live data from /api/contents on mount. Next.js tries
 // to statically pre-render pages at build time by default, but there's no
@@ -60,6 +60,7 @@ export default function ContentsPage() {
   const [saving, setSaving] = useState(false)
 
   const [filters, setFilters] = useState({})       // { category: ['measuring','cutting'], box_name: [...], location_name: [...] }
+  const [pathFilter, setPathFilter] = useState('')
   const [openFilterCol, setOpenFilterCol] = useState(null)
   const [filterSearch, setFilterSearch] = useState('')
   const [filterPos, setFilterPos] = useState({ top: 0, left: 0 })
@@ -109,7 +110,6 @@ export default function ContentsPage() {
       item_name: row.item_name || '',
       description: row.description || '',
       category: row.category || '',
-      date_acquired: row.date_acquired ? row.date_acquired.slice(0, 10) : '',
       parent_item_id: row.parent_item_id || ''
     })
     setShowForm(true)
@@ -154,8 +154,8 @@ export default function ContentsPage() {
     setContents(c => c.filter(r => r.id !== id))
   }
 
-  // Columns that get an Excel-style "filter by value" dropdown
-  // filterableKeys is defined further below, after columns
+  // Category/Box get an Excel-style "pick values" dropdown; Path gets a
+  // free-text "contains" filter — both defined further below
 
   function uniqueValues(key) {
     return [...new Set(contents.map(r => r[key]).filter(v => v && v !== 'Unassigned'))].sort()
@@ -179,9 +179,10 @@ export default function ContentsPage() {
 
   function clearAllFilters() {
     setFilters({})
+    setPathFilter('')
   }
 
-  const activeFilterCount = Object.values(filters).filter(v => v && v.length > 0).length
+  const activeFilterCount = Object.values(filters).filter(v => v && v.length > 0).length + (pathFilter.trim() ? 1 : 0)
 
   function toggleSort(key) {
     if (sortKey === key) {
@@ -197,13 +198,18 @@ export default function ContentsPage() {
     { key: 'description', label: 'Description' },
     { key: 'category', label: 'Category' },
     { key: 'date_added', label: 'Date added' },
-    { key: 'date_acquired', label: 'Date acquired' },
+    { key: 'updated_at', label: 'Last updated' },
     { key: 'box_name', label: 'Box' },
     { key: 'path', label: 'Path' },
     ...(loggedIn ? [{ key: null, label: '' }] : [])
   ]
 
-  const filterableKeys = ['item_name', 'description', 'category', 'date_added', 'date_acquired', 'box_name', 'path']
+  // category/box_name use an Excel-style "pick values" dropdown.
+  // path uses a free-text "contains" filter instead, since paths are
+  // effectively folders — you filter by typing part of the folder name
+  // rather than picking from a huge list of exact full paths.
+  const valueFilterKeys = ['category', 'box_name']
+  const pathFilterKey = 'path'
 
   const filtered = contents
     .filter(r => {
@@ -211,13 +217,14 @@ export default function ContentsPage() {
       const haystack = `${r.item_name} ${r.description} ${r.category} ${r.box_name} ${r.path}`.toLowerCase()
       return haystack.includes(search.toLowerCase())
     })
-    .filter(r => filterableKeys.every(col => !filters[col] || filters[col].length === 0 || filters[col].includes(r[col])))
+    .filter(r => valueFilterKeys.every(col => !filters[col] || filters[col].length === 0 || filters[col].includes(r[col])))
+    .filter(r => !pathFilter.trim() || (r.path || '').toLowerCase().includes(pathFilter.trim().toLowerCase()))
     .slice()
     .sort((a, b) => {
       const av = a[sortKey] || ''
       const bv = b[sortKey] || ''
       let cmp
-      if (sortKey === 'date_added' || sortKey === 'date_acquired') {
+      if (sortKey === 'date_added' || sortKey === 'updated_at') {
         cmp = new Date(av || 0) - new Date(bv || 0)
       } else {
         cmp = String(av).toLowerCase().localeCompare(String(bv).toLowerCase())
@@ -289,10 +296,12 @@ export default function ContentsPage() {
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border2)', textAlign: 'left' }}>
                   {columns.map(col => {
-                    const isFilterable = filterableKeys.includes(col.key)
-                    const colActive = (filters[col.key] || []).length > 0
-                    const colValues = isFilterable ? uniqueValues(col.key) : []
-                    const isDateCol = col.key === 'date_added' || col.key === 'date_acquired'
+                    const isValueFilterable = valueFilterKeys.includes(col.key)
+                    const isPathFilterable = col.key === pathFilterKey
+                    const isFilterable = isValueFilterable || isPathFilterable
+                    const colActive = isPathFilterable ? pathFilter.trim().length > 0 : (filters[col.key] || []).length > 0
+                    const colValues = isValueFilterable ? uniqueValues(col.key) : []
+                    const isDateCol = col.key === 'date_added' || col.key === 'updated_at'
                     const filterLabel = v => (isDateCol ? fmtDate(v) : v)
                     const visibleValues = openFilterCol === col.key
                       ? colValues.filter(v => filterLabel(v).toLowerCase().includes(filterSearch.toLowerCase()))
@@ -354,42 +363,67 @@ export default function ContentsPage() {
                                 zIndex: 201, padding: 10, fontWeight: 400, textTransform: 'none', letterSpacing: 0
                               }}
                             >
-                              <input
-                                placeholder="Search values…"
-                                value={filterSearch}
-                                onChange={e => setFilterSearch(e.target.value)}
-                                style={{ marginBottom: 8, fontSize: 12 }}
-                                autoFocus
-                              />
-                              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                                <span
-                                  style={{ fontSize: 11, color: 'var(--purple-text)', cursor: 'pointer' }}
-                                  onClick={() => selectAllFilter(col.key, visibleValues)}
-                                >
-                                  Select all
-                                </span>
-                                <span
-                                  style={{ fontSize: 11, color: 'var(--text3)', cursor: 'pointer' }}
-                                  onClick={() => clearFilter(col.key)}
-                                >
-                                  Clear
-                                </span>
-                              </div>
-                              <div style={{ maxHeight: 220, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
-                                {visibleValues.length === 0 ? (
-                                  <span style={{ fontSize: 12, color: 'var(--text3)' }}>No values</span>
-                                ) : visibleValues.map(val => (
-                                  <label key={val} style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, fontWeight: 400, cursor: 'pointer' }}>
-                                    <input
-                                      type="checkbox"
-                                      style={{ width: 16, height: 16, flexShrink: 0, padding: 0, accentColor: '#B9853C' }}
-                                      checked={selected.includes(val)}
-                                      onChange={() => toggleFilterValue(col.key, val)}
-                                    />
-                                    {filterLabel(val)}
-                                  </label>
-                                ))}
-                              </div>
+                              {isPathFilterable ? (
+                                <>
+                                  <input
+                                    placeholder="e.g. Orange Box3"
+                                    value={pathFilter}
+                                    onChange={e => setPathFilter(e.target.value)}
+                                    style={{ marginBottom: 8, fontSize: 12 }}
+                                    autoFocus
+                                  />
+                                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                    <span style={{ fontSize: 11, color: 'var(--text3)' }}>
+                                      Shows everything whose path contains this
+                                    </span>
+                                    <span
+                                      style={{ fontSize: 11, color: 'var(--text3)', cursor: 'pointer', flexShrink: 0, marginLeft: 8 }}
+                                      onClick={() => setPathFilter('')}
+                                    >
+                                      Clear
+                                    </span>
+                                  </div>
+                                </>
+                              ) : (
+                                <>
+                                  <input
+                                    placeholder="Search values…"
+                                    value={filterSearch}
+                                    onChange={e => setFilterSearch(e.target.value)}
+                                    style={{ marginBottom: 8, fontSize: 12 }}
+                                    autoFocus
+                                  />
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                                    <span
+                                      style={{ fontSize: 11, color: 'var(--purple-text)', cursor: 'pointer' }}
+                                      onClick={() => selectAllFilter(col.key, visibleValues)}
+                                    >
+                                      Select all
+                                    </span>
+                                    <span
+                                      style={{ fontSize: 11, color: 'var(--text3)', cursor: 'pointer' }}
+                                      onClick={() => clearFilter(col.key)}
+                                    >
+                                      Clear
+                                    </span>
+                                  </div>
+                                  <div style={{ maxHeight: 220, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                    {visibleValues.length === 0 ? (
+                                      <span style={{ fontSize: 12, color: 'var(--text3)' }}>No values</span>
+                                    ) : visibleValues.map(val => (
+                                      <label key={val} style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, fontWeight: 400, cursor: 'pointer' }}>
+                                        <input
+                                          type="checkbox"
+                                          style={{ width: 16, height: 16, flexShrink: 0, padding: 0, accentColor: '#B9853C' }}
+                                          checked={selected.includes(val)}
+                                          onChange={() => toggleFilterValue(col.key, val)}
+                                        />
+                                        {filterLabel(val)}
+                                      </label>
+                                    ))}
+                                  </div>
+                                </>
+                              )}
                             </div>
                           </>
                         )}
@@ -407,7 +441,7 @@ export default function ContentsPage() {
                       {row.category ? <span className="chip purple">{row.category}</span> : '—'}
                     </td>
                     <td style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>{fmtDate(row.date_added)}</td>
-                    <td style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>{fmtDate(row.date_acquired)}</td>
+                    <td style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>{fmtDate(row.updated_at)}</td>
                     <td style={{ padding: '8px 10px' }}>
                       {row.parent_item_id
                         ? <span className="chip purple" style={{ cursor: 'pointer' }} onClick={() => router.push(`/scan?id=${row.parent_item_id}`)}>{row.box_name}</span>
@@ -483,15 +517,6 @@ export default function ContentsPage() {
                   <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
               </select>
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Date acquired</label>
-              <input
-                type="date"
-                value={form.date_acquired}
-                onChange={e => setForm(f => ({ ...f, date_acquired: e.target.value }))}
-              />
             </div>
 
             <div style={{ display: 'flex', gap: 8 }}>
