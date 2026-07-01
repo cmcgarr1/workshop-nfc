@@ -66,6 +66,12 @@ export default function ContentsPage() {
   const [filterPos, setFilterPos] = useState({ top: 0, left: 0 })
   const [sortKey, setSortKey] = useState('date_added')
   const [sortDir, setSortDir] = useState('desc')
+
+  console.log('[open-trace] RENDER — openFilterCol=', openFilterCol, 'loading=', loading, 'loggedIn=', loggedIn, 't=', Date.now())
+
+  useEffect(() => {
+    console.log('[open-trace] ContentsPage MOUNTED at', Date.now())
+  }, [])
   const filterBtnRefs = useRef({})
 
   useLayoutEffect(() => {
@@ -334,6 +340,8 @@ export default function ContentsPage() {
                               background: colActive ? 'var(--purple-bg)' : 'transparent'
                             }}
                             onClick={e => {
+                              console.log('[open-trace] filter button clicked, isTrusted=', e.isTrusted, 'col=', col.key, 'timeStamp=', e.timeStamp)
+                              console.trace('[open-trace] call stack')
                               e.stopPropagation()
                               setFilterSearch('')
                               setOpenFilterCol(prev => (prev === col.key ? null : col.key))
