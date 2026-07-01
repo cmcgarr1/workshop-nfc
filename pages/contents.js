@@ -361,7 +361,7 @@ export default function ContentsPage() {
                               onClick={e => e.stopPropagation()}
                               style={{
                                 position: 'fixed', top: filterPos.top, left: filterPos.left,
-                                width: 220, background: 'var(--bg)', border: '0.5px solid var(--border2)',
+                                width: 220, background: 'red', border: '4px solid yellow',
                                 borderRadius: 'var(--radius-sm)', boxShadow: '0 6px 20px rgba(43,33,24,0.35)',
                                 zIndex: 201, padding: 10, fontWeight: 400, textTransform: 'none', letterSpacing: 0
                               }}
@@ -390,7 +390,7 @@ export default function ContentsPage() {
                               ) : (
                                 <>
                                   <input
-                                    placeholder="Search values…"
+                                    placeholder="ZZZ TEST MARKER ZZZ"
                                     value={filterSearch}
                                     onChange={e => setFilterSearch(e.target.value)}
                                     style={{ marginBottom: 8, fontSize: 12 }}
