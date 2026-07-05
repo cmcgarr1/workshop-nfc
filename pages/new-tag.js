@@ -73,6 +73,12 @@ export default function NewTagPage() {
   }, [])
 
   const url = id ? `${PRODUCTION_ORIGIN}/scan?id=${id}` : ''
+  // Most NFC writer apps that write a "URL" record already prepend the
+  // scheme themselves, so typing/pasting "https://" again would result
+  // in a broken double-scheme URL on the tag. The QR code below still
+  // uses the full `url` (with scheme) since that's needed for a phone
+  // camera to recognize and open it as a link.
+  const writeUrl = url.replace(/^https?:\/\//, '')
   const { canvasRef, ready } = useQrCode(url)
   const isDuplicate = id && existingIds.includes(id)
 
@@ -87,7 +93,7 @@ export default function NewTagPage() {
 
   async function copyUrl() {
     try {
-      await navigator.clipboard.writeText(url)
+      await navigator.clipboard.writeText(writeUrl)
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     } catch {
@@ -155,7 +161,7 @@ export default function NewTagPage() {
           <div className="form-group" style={{ textAlign: 'left' }}>
             <label className="form-label">URL to write</label>
             <div className="id-row">
-              <input className="prefilled" value={url || 'Type a name above first…'} readOnly />
+              <input className="prefilled" value={writeUrl || 'Type a name above first…'} readOnly />
               <button className="btn-ghost" onClick={copyUrl} disabled={!id}>
                 {copied ? 'Copied' : 'Copy'}
               </button>

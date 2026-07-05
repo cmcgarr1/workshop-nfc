@@ -343,10 +343,15 @@ export default function ScanPage() {
 
               <div className="form-group">
                 <label className="form-label">Contents / notes</label>
-                <input
+                <textarea
                   placeholder="What's inside, or any notes…"
                   value={form.notes}
                   onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
+                  spellCheck="true"
+                  autoCorrect="on"
+                  autoCapitalize="sentences"
+                  rows={3}
+                  style={{ resize: 'vertical' }}
                 />
               </div>
 
