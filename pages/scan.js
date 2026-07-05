@@ -545,6 +545,9 @@ export default function ScanPage() {
                             list="category-suggestions"
                             value={contentForm.item_name}
                             onChange={e => setContentForm(f => ({ ...f, item_name: e.target.value }))}
+                            spellCheck="true"
+                            autoCorrect="on"
+                            autoCapitalize="words"
                           />
                           <datalist id="category-suggestions">
                             {categorySuggestions.map(c => <option key={c} value={c} />)}
@@ -562,10 +565,15 @@ export default function ScanPage() {
                           </div>
                           <div className="form-group">
                             <label className="form-label">Description</label>
-                            <input
+                            <textarea
                               placeholder="Optional details"
                               value={contentForm.description}
                               onChange={e => setContentForm(f => ({ ...f, description: e.target.value }))}
+                              spellCheck="true"
+                              autoCorrect="on"
+                              autoCapitalize="sentences"
+                              rows={2}
+                              style={{ resize: 'vertical' }}
                             />
                           </div>
                           <div className="form-group">
@@ -575,6 +583,9 @@ export default function ScanPage() {
                               list="category-suggestions"
                               value={contentForm.category}
                               onChange={e => setContentForm(f => ({ ...f, category: e.target.value }))}
+                              spellCheck="true"
+                              autoCorrect="on"
+                              autoCapitalize="words"
                             />
                             <datalist id="category-suggestions">
                               {categorySuggestions.map(c => <option key={c} value={c} />)}
