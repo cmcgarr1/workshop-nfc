@@ -4,7 +4,7 @@ import Head from 'next/head'
 import {
   IconPackage, IconLayers, IconCheck, IconNfc, IconEdit,
   IconMove, IconList, IconArrowLeft, IconTag, IconNote,
-  IconSitemap, IconTrash, IconTool, IconArrowRight, IconPlus
+  IconSitemap, IconTrash, IconTool, IconArrowRight, IconPlus, IconCamera
 } from '../lib/icons'
 import { apiFetch } from '../lib/apiFetch'
 import { useAuth } from './_app'
@@ -404,9 +404,10 @@ export default function ScanPage() {
                       )}
                       {loggedIn && (
                         <label
-                          className="btn-ghost"
-                          style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 8, fontSize: 12, padding: '6px 10px', cursor: 'pointer' }}
+                          className="btn-primary"
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: 7, marginTop: 10, fontSize: 14, fontWeight: 500, padding: '10px 16px', cursor: 'pointer' }}
                         >
+                          <IconCamera />
                           {uploadingPhoto ? 'Uploading…' : item.photo_url ? 'Replace photo' : 'Add photo'}
                           <input
                             type="file"
