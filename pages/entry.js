@@ -111,7 +111,8 @@ export default function EntryPage() {
             </div>
             <div className="form-group">
               <label className="form-label">Date acquired</label>
-              <input type="date" value={form.date_acquired} onChange={e => setForm(f => ({ ...f, date_acquired: e.target.value }))} />
+              <div className="meta-value" style={{ textAlign: 'left' }}>{fmtDate(entry.date_acquired)}</div>
+              <div className="form-hint">Set automatically when the item was added — doesn't change on edit.</div>
             </div>
             <div className="form-group">
               <label className="form-label">Location (box/shelf)</label>

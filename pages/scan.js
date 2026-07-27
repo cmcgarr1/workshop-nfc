@@ -9,6 +9,12 @@ import {
 import { apiFetch } from '../lib/apiFetch'
 import { useAuth } from './_app'
 
+function todayStr() {
+  const d = new Date()
+  const tzOffsetMs = d.getTimezoneOffset() * 60000
+  return new Date(d.getTime() - tzOffsetMs).toISOString().slice(0, 10)
+}
+
 function genId(name) {
   const base = name
     ? name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 20)
@@ -36,7 +42,7 @@ export default function ScanPage() {
   const [contents, setContents] = useState([])
   const [categorySuggestions, setCategorySuggestions] = useState([])
   const [showAddContent, setShowAddContent] = useState(false)
-  const [contentForm, setContentForm] = useState({ item_name: '', description: '', category: '', date_acquired: '', is_category: false })
+  const [contentForm, setContentForm] = useState({ item_name: '', description: '', category: '', date_acquired: todayStr(), is_category: false })
   const [addingContent, setAddingContent] = useState(false)
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
 
@@ -160,7 +166,7 @@ export default function ScanPage() {
     const data = await r.json()
     setAddingContent(false)
     if (!r.ok) return alert(data.error)
-    setContentForm({ item_name: '', description: '', category: '', date_acquired: '', is_category: false })
+    setContentForm({ item_name: '', description: '', category: '', date_acquired: todayStr(), is_category: false })
     setShowAddContent(false)
     loadContents(item.id)
     const newCategory = payload.category || contentForm.category

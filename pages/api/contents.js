@@ -68,7 +68,7 @@ export default async function handler(req, res) {
         item_name,
         description: description || '',
         category: category || '',
-        date_acquired: date_acquired || null,
+        date_acquired: date_acquired || new Date().toISOString(),
         user_id: userId
       }])
       .select()
@@ -81,7 +81,7 @@ export default async function handler(req, res) {
   if (method === 'PATCH') {
     const { id } = query
     if (!id) return res.status(400).json({ error: 'id required' })
-    const { item_name, description, category, date_acquired, parent_item_id } = body
+    const { item_name, description, category, parent_item_id } = body
 
     if (parent_item_id) {
       const { data: parent } = await supabase
@@ -99,7 +99,6 @@ export default async function handler(req, res) {
         item_name,
         description,
         category,
-        date_acquired: date_acquired || null,
         parent_item_id: parent_item_id || null
       })
       .eq('id', id)
