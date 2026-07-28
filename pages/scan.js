@@ -632,13 +632,9 @@ export default function ScanPage() {
                               style={{ borderBottom: '0.5px solid var(--border)', cursor: 'pointer' }}
                               onClick={() => router.push(`/scan?id=${c.id}`)}
                             >
-                              <td style={{ padding: '6px 8px', fontWeight: 500, display: 'flex', alignItems: 'center', gap: 6 }}>
-                                {c.type === 'location' ? <IconLayers /> : <IconPackage />} {c.name}
-                              </td>
+                              <td style={{ padding: '6px 8px', fontWeight: 500 }}>{c.name}</td>
                               <td style={{ padding: '6px 8px' }}>
-                                <span className={`chip${c.type === 'location' ? ' blue' : ' purple'}`}>
-                                  {c.type === 'location' ? 'Location' : 'Container'}
-                                </span>
+                                {c.type === 'location' ? 'Location' : 'Container'}
                               </td>
                               {loggedIn && <td style={{ padding: '6px 8px' }} />}
                             </tr>
