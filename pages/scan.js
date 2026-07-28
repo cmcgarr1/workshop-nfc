@@ -611,7 +611,7 @@ export default function ScanPage() {
                     </div>
                   )}
 
-                  {contents.length === 0 ? (
+                  {contents.length === 0 && children.length === 0 ? (
                     <div style={{ textAlign: 'center', color: 'var(--text3)', fontSize: 13, padding: '12px 0' }}>
                       No items logged yet
                     </div>
@@ -626,6 +626,23 @@ export default function ScanPage() {
                           </tr>
                         </thead>
                         <tbody>
+                          {children.map(c => (
+                            <tr
+                              key={c.id}
+                              style={{ borderBottom: '0.5px solid var(--border)', cursor: 'pointer' }}
+                              onClick={() => router.push(`/scan?id=${c.id}`)}
+                            >
+                              <td style={{ padding: '6px 8px', fontWeight: 500, display: 'flex', alignItems: 'center', gap: 6 }}>
+                                {c.type === 'location' ? <IconLayers /> : <IconPackage />} {c.name}
+                              </td>
+                              <td style={{ padding: '6px 8px' }}>
+                                <span className={`chip${c.type === 'location' ? ' blue' : ' purple'}`}>
+                                  {c.type === 'location' ? 'Location' : 'Container'}
+                                </span>
+                              </td>
+                              {loggedIn && <td style={{ padding: '6px 8px' }} />}
+                            </tr>
+                          ))}
                           {contents.map(row => {
                             const displayName = row.item_name || row.category || '—'
                             return (
@@ -655,19 +672,6 @@ export default function ScanPage() {
                     </div>
                   )}
                 </div>
-
-                {children.length > 0 && (
-                  <div className="card">
-                    <div className="section-label">Contains ({children.length})</div>
-                    <div className="children-grid">
-                      {children.map(c => (
-                        <div key={c.id} className="child-tag" onClick={() => router.push(`/scan?id=${c.id}`)}>
-                          <IconPackage /> {c.name}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
               </div>
 
