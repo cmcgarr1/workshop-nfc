@@ -3,6 +3,7 @@ import { useRouter } from 'next/router'
 import Head from 'next/head'
 import { IconArrowLeft, IconTool, IconCheck, IconTrash } from '../lib/icons'
 import { apiFetch } from '../lib/apiFetch'
+import SearchableSelect from '../lib/SearchableSelect'
 import { useAuth } from './_app'
 
 function fmtDate(d) {
@@ -22,6 +23,7 @@ export default function EntryPage() {
   const [saving, setSaving] = useState(false)
   const [toast, setToast] = useState(null)
   const [allItems, setAllItems] = useState([])
+  const [categorySuggestions, setCategorySuggestions] = useState([])
 
   useEffect(() => {
     if (!id) return
@@ -44,6 +46,9 @@ export default function EntryPage() {
     apiFetch('/api/items')
       .then(r => r.json())
       .then(d => setAllItems(d.items || []))
+    apiFetch('/api/contents?categories_only=1')
+      .then(r => r.json())
+      .then(d => setCategorySuggestions(d.categories || []))
   }, [id])
 
   function showToast(msg) {
@@ -107,7 +112,18 @@ export default function EntryPage() {
             </div>
             <div className="form-group">
               <label className="form-label">Category</label>
-              <input value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} placeholder="e.g. Power tools" />
+              <input
+                value={form.category}
+                onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
+                placeholder="Type to see suggestions…"
+                list="category-suggestions"
+                spellCheck="true"
+                autoCorrect="on"
+                autoCapitalize="words"
+              />
+              <datalist id="category-suggestions">
+                {categorySuggestions.map(c => <option key={c} value={c} />)}
+              </datalist>
             </div>
             <div className="form-group">
               <label className="form-label">Date acquired</label>
@@ -116,10 +132,11 @@ export default function EntryPage() {
             </div>
             <div className="form-group">
               <label className="form-label">Location (box/shelf)</label>
-              <select value={form.parent_item_id} onChange={e => setForm(f => ({ ...f, parent_item_id: e.target.value }))}>
-                <option value="">Unassigned</option>
-                {allItems.map(i => <option key={i.id} value={i.id}>{i.name}</option>)}
-              </select>
+              <SearchableSelect
+                value={form.parent_item_id}
+                onChange={v => setForm(f => ({ ...f, parent_item_id: v }))}
+                options={allItems.map(i => ({ value: i.id, label: i.name, sub: i.type }))}
+              />
             </div>
             <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
               <button className="btn-primary save-btn" style={{ flex: 1 }} onClick={saveEdit} disabled={saving}>

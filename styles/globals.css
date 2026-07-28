@@ -96,12 +96,13 @@ button:active { transform: scale(0.98); }
 
 .card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 14px; }
 
-.item-head { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+.item-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
 .item-icon { width: 42px; height: 42px; border-radius: 9px; background: var(--purple-bg); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .item-icon svg { width: 22px; height: 22px; color: var(--purple-text); }
 .item-icon.loc { background: var(--blue-bg); }
 .item-icon.loc svg { color: var(--blue-text); }
 .item-name { font-size: 17px; font-weight: 500; }
+.item-name-lg { font-size: 24px; font-weight: 600; line-height: 42px; overflow-wrap: break-word; }
 .item-id { font-size: 11px; color: var(--text3); font-family: monospace; margin-top: 2px; }
 
 .meta { display: flex; flex-direction: column; gap: 1px; }
@@ -186,6 +187,24 @@ button:active { transform: scale(0.98); }
 
 .fab { position: fixed; bottom: 24px; right: 20px; width: 52px; height: 52px; border-radius: 50%; background: var(--text); color: var(--bg); border: none; display: flex; align-items: center; justify-content: center; box-shadow: none; cursor: pointer; }
 .fab svg { width: 24px; height: 24px; }
+
+/* Scan page: data card + contents side by side on wide screens */
+.scan-grid { display: flex; flex-direction: column; }
+.scan-col-main, .scan-col-side { min-width: 0; }
+@media (min-width: 860px) {
+  .scan-grid { flex-direction: row; align-items: flex-start; gap: 14px; }
+  .scan-col-main { flex: 0 0 380px; }
+  .scan-col-side { flex: 1; }
+}
+
+/* Searchable select (location/parent picker) */
+.combo { position: relative; }
+.combo-menu { position: absolute; top: calc(100% + 4px); left: 0; right: 0; max-height: 240px; overflow-y: auto; background: var(--bg); border: 0.5px solid var(--border2); border-radius: var(--radius-sm); box-shadow: 0 6px 20px rgba(0,0,0,0.18); z-index: 50; padding: 4px; }
+.combo-option { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding: 8px 9px; border-radius: 6px; font-size: 13px; cursor: pointer; }
+.combo-option.active { background: var(--bg2); }
+.combo-option.selected { color: var(--purple-text); font-weight: 500; }
+.combo-option-sub { font-size: 11px; color: var(--text3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.combo-empty { padding: 8px 9px; font-size: 12px; color: var(--text3); }
 
 /* Modal */
 .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: flex-end; justify-content: center; z-index: 100; }

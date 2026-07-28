@@ -3,6 +3,7 @@ import { useRouter } from 'next/router'
 import Head from 'next/head'
 import { IconArrowLeft, IconPlus, IconCheck } from '../lib/icons'
 import { apiFetch } from '../lib/apiFetch'
+import SearchableSelect from '../lib/SearchableSelect'
 import { useAuth } from './_app'
 
 function IconPencil() {
@@ -521,15 +522,12 @@ export default function ContentsPage() {
 
             <div className="form-group">
               <label className="form-label">Box / container</label>
-              <select
+              <SearchableSelect
                 value={form.parent_item_id}
-                onChange={e => setForm(f => ({ ...f, parent_item_id: e.target.value }))}
-              >
-                <option value="">— unassigned —</option>
-                {containers.map(c => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
+                onChange={v => setForm(f => ({ ...f, parent_item_id: v }))}
+                emptyLabel="— unassigned —"
+                options={containers.map(c => ({ value: c.id, label: c.name }))}
+              />
             </div>
 
             <div style={{ display: 'flex', gap: 8 }}>

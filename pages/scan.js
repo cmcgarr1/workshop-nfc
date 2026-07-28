@@ -3,10 +3,11 @@ import { useRouter } from 'next/router'
 import Head from 'next/head'
 import {
   IconPackage, IconLayers, IconCheck, IconNfc, IconEdit,
-  IconMove, IconList, IconArrowLeft, IconTag, IconNote,
+  IconMove, IconList, IconArrowLeft, IconNote,
   IconSitemap, IconTrash, IconTool, IconArrowRight, IconPlus, IconCamera
 } from '../lib/icons'
 import { apiFetch } from '../lib/apiFetch'
+import SearchableSelect from '../lib/SearchableSelect'
 import { useAuth } from './_app'
 
 function todayStr() {
@@ -44,6 +45,7 @@ export default function ScanPage() {
   const [showAddContent, setShowAddContent] = useState(false)
   const [contentForm, setContentForm] = useState({ item_name: '', description: '', category: '', date_acquired: todayStr(), is_category: false })
   const [addingContent, setAddingContent] = useState(false)
+  const [addAnother, setAddAnother] = useState(false)
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
 
   function loadContents(parentId) {
@@ -166,8 +168,12 @@ export default function ScanPage() {
     const data = await r.json()
     setAddingContent(false)
     if (!r.ok) return alert(data.error)
-    setContentForm({ item_name: '', description: '', category: '', date_acquired: todayStr(), is_category: false })
-    setShowAddContent(false)
+    // Adding another keeps category/date filled in (usually the same for a
+    // batch of similar items) and only clears the per-item fields.
+    setContentForm(f => addAnother
+      ? { ...f, item_name: '', description: '' }
+      : { item_name: '', description: '', category: '', date_acquired: todayStr(), is_category: false })
+    setShowAddContent(addAnother)
     loadContents(item.id)
     const newCategory = payload.category || contentForm.category
     if (newCategory && !categorySuggestions.includes(newCategory)) {
@@ -264,7 +270,7 @@ export default function ScanPage() {
         <meta name="theme-color" content="#ffffff" />
       </Head>
 
-      <div className="page" style={{ paddingTop: 64 }}>
+      <div className="page" style={{ paddingTop: 64, maxWidth: status === 'known' && (view === 'main' || view === 'edit') ? 900 : undefined }}>
 
         {status === 'loading' && (
           <div className="loading">
@@ -335,15 +341,12 @@ export default function ScanPage() {
               {form.type === 'container' && (
                 <div className="form-group">
                   <label className="form-label">Parent location</label>
-                  <select
+                  <SearchableSelect
                     value={form.parent_id}
-                    onChange={e => setForm(f => ({ ...f, parent_id: e.target.value }))}
-                  >
-                    <option value="">— unassigned —</option>
-                    {allItems.filter(i => i.type === 'location').map(loc => (
-                      <option key={loc.id} value={loc.id}>{loc.name}</option>
-                    ))}
-                  </select>
+                    onChange={v => setForm(f => ({ ...f, parent_id: v }))}
+                    emptyLabel="— unassigned —"
+                    options={allItems.filter(i => i.type === 'location').map(loc => ({ value: loc.id, label: loc.name }))}
+                  />
                 </div>
               )}
 
@@ -372,14 +375,8 @@ export default function ScanPage() {
           <>
             {(view === 'main' || view === 'edit') && (
               <>
-                <div className="flash known">
-                  <div className="flash-icon"><IconCheck /></div>
-                  <div>
-                    <p>Tag recognised</p>
-                    <span>Scanned just now</span>
-                  </div>
-                </div>
-
+              <div className="scan-grid">
+              <div className="scan-col-main">
                 <div className="card">
                   {(item.photo_url || loggedIn) && (
                     <div style={{ marginBottom: 14 }}>
@@ -402,41 +399,39 @@ export default function ScanPage() {
                           No photo yet
                         </div>
                       )}
-                      {loggedIn && (
-                        <label
-                          className="btn-primary"
-                          style={{ display: 'inline-flex', alignItems: 'center', gap: 7, marginTop: 10, fontSize: 14, fontWeight: 500, padding: '10px 16px', cursor: 'pointer' }}
-                        >
-                          <IconCamera />
-                          {uploadingPhoto ? 'Uploading…' : item.photo_url ? 'Replace photo' : 'Add photo'}
-                          <input
-                            type="file"
-                            accept="image/*"
-                            style={{ display: 'none' }}
-                            disabled={uploadingPhoto}
-                            onChange={e => uploadPhoto(e.target.files?.[0])}
-                          />
-                        </label>
-                      )}
                     </div>
                   )}
 
                   <div className="item-head">
-                    <div className={`item-icon${item.type === 'location' ? ' loc' : ''}`}>
-                      {item.type === 'location' ? <IconLayers /> : <IconPackage />}
-                    </div>
-                    <div style={{ flex: 1 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
                       {view === 'edit' ? (
                         <input
                           value={editForm.name}
                           onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
-                          style={{ fontWeight: 500, fontSize: 17, padding: '4px 8px' }}
+                          style={{ fontWeight: 600, fontSize: 22, padding: '4px 8px' }}
                         />
                       ) : (
-                        <div className="item-name">{item.name}</div>
+                        <div className="item-name-lg">{item.name}</div>
                       )}
-                      {loggedIn && <div className="item-id">{item.id}</div>}
                     </div>
+
+                    {loggedIn && (
+                      <label
+                        className="btn-primary"
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 500, padding: '8px 12px', cursor: 'pointer', flexShrink: 0 }}
+                      >
+                        <IconCamera />
+                        {uploadingPhoto ? 'Uploading…' : item.photo_url ? 'Replace' : 'Add photo'}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          style={{ display: 'none' }}
+                          disabled={uploadingPhoto}
+                          onChange={e => uploadPhoto(e.target.files?.[0])}
+                        />
+                      </label>
+                    )}
+
                     {view === 'edit' ? (
                       <div className="type-toggle" style={{ margin: 0 }}>
                         <button
@@ -455,10 +450,7 @@ export default function ScanPage() {
                         </button>
                       </div>
                     ) : (
-                      <span
-                        className={`chip${item.type === 'location' ? ' blue' : ' purple'}`}
-                        style={{ marginLeft: 'auto' }}
-                      >
+                      <span className={`chip${item.type === 'location' ? ' blue' : ' purple'}`}>
                         {item.type === 'location' ? 'Location' : 'Container'}
                       </span>
                     )}
@@ -472,33 +464,15 @@ export default function ScanPage() {
 
                   <div className="meta">
                     <div className="meta-row">
-                      <IconNote />
-                      <span className="meta-label">Notes</span>
-                      {view === 'edit' ? (
-                        <input
-                          value={editForm.notes}
-                          onChange={e => setEditForm(f => ({ ...f, notes: e.target.value }))}
-                          placeholder="Notes…"
-                          style={{ marginLeft: 'auto', width: '60%', fontSize: 13, padding: '3px 8px' }}
-                        />
-                      ) : (
-                        <span className="meta-value">{item.notes || <span style={{ color: 'var(--text3)' }}>—</span>}</span>
-                      )}
-                    </div>
-                    <div className="meta-row">
                       <IconSitemap />
                       <span className="meta-label">Location</span>
                       {view === 'edit' ? (
-                        <select
+                        <SearchableSelect
+                          style={{ marginLeft: 'auto', width: '60%' }}
                           value={editForm.parent_id}
-                          onChange={e => setEditForm(f => ({ ...f, parent_id: e.target.value }))}
-                          style={{ marginLeft: 'auto', width: '60%', fontSize: 13, padding: '3px 8px' }}
-                        >
-                          <option value="">Unassigned</option>
-                          {allItems.filter(i => i.id !== item.id).map(i => (
-                            <option key={i.id} value={i.id}>{i.name}</option>
-                          ))}
-                        </select>
+                          onChange={v => setEditForm(f => ({ ...f, parent_id: v }))}
+                          options={allItems.filter(i => i.id !== item.id).map(i => ({ value: i.id, label: i.name, sub: i.type }))}
+                        />
                       ) : (
                         <span className="meta-value">
                           {item.parent_id
@@ -510,13 +484,23 @@ export default function ScanPage() {
                         </span>
                       )}
                     </div>
-                    {loggedIn && (
+                    {view === 'edit' ? (
                       <div className="meta-row">
-                        <IconTag />
-                        <span className="meta-label">NFC tag</span>
-                        <span className="meta-value" style={{ fontFamily: 'monospace', fontSize: 12 }}>{item.id}</span>
+                        <IconNote />
+                        <span className="meta-label">Notes</span>
+                        <input
+                          value={editForm.notes}
+                          onChange={e => setEditForm(f => ({ ...f, notes: e.target.value }))}
+                          placeholder="Notes…"
+                          style={{ marginLeft: 'auto', width: '60%', fontSize: 13, padding: '3px 8px' }}
+                        />
                       </div>
-                    )}
+                    ) : item.notes ? (
+                      <div className="meta-row">
+                        <IconNote />
+                        <span className="meta-value" style={{ marginLeft: 0 }}>{item.notes}</span>
+                      </div>
+                    ) : null}
                   </div>
 
                   {view === 'edit' && (
@@ -530,7 +514,9 @@ export default function ScanPage() {
                     </div>
                   )}
                 </div>
+              </div>
 
+              <div className="scan-col-side">
                 <div className="card">
                   {showAddContent && (
                     <div style={{ background: 'var(--bg2)', borderRadius: 'var(--radius-sm)', padding: 12, marginBottom: 12 }}>
@@ -609,8 +595,18 @@ export default function ScanPage() {
                         </>
                       )}
 
+                      <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, fontSize: 13, cursor: 'pointer' }}>
+                        <input
+                          type="checkbox"
+                          style={{ width: 'auto' }}
+                          checked={addAnother}
+                          onChange={e => setAddAnother(e.target.checked)}
+                        />
+                        Keep this form open to add another after saving
+                      </label>
+
                       <button className="btn-primary save-btn" onClick={addContentItem} disabled={addingContent}>
-                        <IconCheck /> {addingContent ? 'Adding…' : 'Add to contents'}
+                        <IconCheck /> {addingContent ? 'Adding…' : addAnother ? 'Add & keep adding' : 'Add to contents'}
                       </button>
                     </div>
                   )}
@@ -672,6 +668,8 @@ export default function ScanPage() {
                     </div>
                   </div>
                 )}
+              </div>
+              </div>
 
                 <div className="action-grid" style={{ gridTemplateColumns: loggedIn ? '1fr 1fr 1fr 1fr' : '1fr' }}>
                   {loggedIn && (
