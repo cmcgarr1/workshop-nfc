@@ -8,6 +8,7 @@ import {
 } from '../lib/icons'
 import { apiFetch } from '../lib/apiFetch'
 import SearchableSelect from '../lib/SearchableSelect'
+import CategoryTagInput from '../lib/CategoryTagInput'
 import { useAuth } from './_app'
 
 function todayStr() {
@@ -43,7 +44,7 @@ export default function ScanPage() {
   const [contents, setContents] = useState([])
   const [categorySuggestions, setCategorySuggestions] = useState([])
   const [showAddContent, setShowAddContent] = useState(false)
-  const [contentForm, setContentForm] = useState({ item_name: '', description: '', category: '', date_acquired: todayStr(), is_category: false })
+  const [contentForm, setContentForm] = useState({ item_name: '', description: '', categories: [], date_acquired: todayStr(), is_category: false })
   const [addingContent, setAddingContent] = useState(false)
   const [addAnother, setAddAnother] = useState(false)
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
@@ -149,13 +150,13 @@ export default function ScanPage() {
 
   async function addContentItem() {
     const payload = contentForm.is_category
-      ? { category: contentForm.item_name.trim() }
+      ? { categories: [contentForm.item_name.trim()] }
       : { ...contentForm }
 
-    if (contentForm.is_category && !payload.category) {
+    if (contentForm.is_category && !contentForm.item_name.trim()) {
       return alert('Please enter a category name')
     }
-    if (!contentForm.is_category && !contentForm.item_name.trim() && !contentForm.category.trim()) {
+    if (!contentForm.is_category && !contentForm.item_name.trim() && contentForm.categories.length === 0) {
       return alert('Enter an item name, or check Category and enter a category name')
     }
 
@@ -168,17 +169,15 @@ export default function ScanPage() {
     const data = await r.json()
     setAddingContent(false)
     if (!r.ok) return alert(data.error)
-    // Adding another keeps category/date filled in (usually the same for a
+    // Adding another keeps categories/date filled in (usually the same for a
     // batch of similar items) and only clears the per-item fields.
     setContentForm(f => addAnother
       ? { ...f, item_name: '', description: '' }
-      : { item_name: '', description: '', category: '', date_acquired: todayStr(), is_category: false })
+      : { item_name: '', description: '', categories: [], date_acquired: todayStr(), is_category: false })
     setShowAddContent(addAnother)
     loadContents(item.id)
-    const newCategory = payload.category || contentForm.category
-    if (newCategory && !categorySuggestions.includes(newCategory)) {
-      setCategorySuggestions(c => [...c, newCategory].sort())
-    }
+    const newCategories = data.content?.categories || []
+    setCategorySuggestions(c => [...new Set([...c, ...newCategories])].sort())
     showToast('Item added!')
   }
 
@@ -570,19 +569,12 @@ export default function ScanPage() {
                             />
                           </div>
                           <div className="form-group">
-                            <label className="form-label">Category</label>
-                            <input
-                              placeholder="Type to see suggestions…"
-                              list="category-suggestions"
-                              value={contentForm.category}
-                              onChange={e => setContentForm(f => ({ ...f, category: e.target.value }))}
-                              spellCheck="true"
-                              autoCorrect="on"
-                              autoCapitalize="words"
+                            <label className="form-label">Categories</label>
+                            <CategoryTagInput
+                              value={contentForm.categories}
+                              onChange={v => setContentForm(f => ({ ...f, categories: v }))}
+                              suggestions={categorySuggestions}
                             />
-                            <datalist id="category-suggestions">
-                              {categorySuggestions.map(c => <option key={c} value={c} />)}
-                            </datalist>
                           </div>
                           <div className="form-group">
                             <label className="form-label">Date acquired</label>
@@ -640,7 +632,7 @@ export default function ScanPage() {
                             </tr>
                           ))}
                           {contents.map(row => {
-                            const displayName = row.item_name || row.category || '—'
+                            const displayName = row.item_name || row.categories?.[0] || '—'
                             return (
                               <tr
                                 key={row.id}
@@ -649,7 +641,11 @@ export default function ScanPage() {
                               >
                                 <td style={{ padding: '6px 8px', fontWeight: 500 }}>{displayName}</td>
                                 <td style={{ padding: '6px 8px' }}>
-                                  {row.category ? <span className="chip purple">{row.category}</span> : '—'}
+                                  {row.categories?.length ? (
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                                      {row.categories.map(c => <span key={c} className="chip purple">{c}</span>)}
+                                    </div>
+                                  ) : '—'}
                                 </td>
                                 {loggedIn && (
                                   <td style={{ padding: '6px 8px' }} onClick={e => e.stopPropagation()}>

@@ -4,6 +4,7 @@ import Head from 'next/head'
 import { IconArrowLeft, IconTool, IconCheck, IconTrash } from '../lib/icons'
 import { apiFetch } from '../lib/apiFetch'
 import SearchableSelect from '../lib/SearchableSelect'
+import CategoryTagInput from '../lib/CategoryTagInput'
 import { useAuth } from './_app'
 
 function fmtDate(d) {
@@ -35,7 +36,7 @@ export default function EntryPage() {
         if (row) setForm({
           item_name: row.item_name || '',
           description: row.description || '',
-          category: row.category || '',
+          categories: row.categories || [],
           date_acquired: row.date_acquired ? row.date_acquired.slice(0, 10) : '',
           parent_item_id: row.parent_item_id || ''
         })
@@ -77,7 +78,7 @@ export default function EntryPage() {
     router.back()
   }
 
-  const displayName = entry?.item_name || entry?.category || 'Entry'
+  const displayName = entry?.item_name || entry?.categories?.[0] || 'Entry'
 
   return (
     <>
@@ -111,19 +112,12 @@ export default function EntryPage() {
               <input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="e.g. 4 in, 24V" />
             </div>
             <div className="form-group">
-              <label className="form-label">Category</label>
-              <input
-                value={form.category}
-                onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
-                placeholder="Type to see suggestions…"
-                list="category-suggestions"
-                spellCheck="true"
-                autoCorrect="on"
-                autoCapitalize="words"
+              <label className="form-label">Categories</label>
+              <CategoryTagInput
+                value={form.categories}
+                onChange={v => setForm(f => ({ ...f, categories: v }))}
+                suggestions={categorySuggestions}
               />
-              <datalist id="category-suggestions">
-                {categorySuggestions.map(c => <option key={c} value={c} />)}
-              </datalist>
             </div>
             <div className="form-group">
               <label className="form-label">Date acquired</label>
@@ -159,8 +153,10 @@ export default function EntryPage() {
                   </div>
                 )}
               </div>
-              {entry.category && (
-                <span className="chip purple" style={{ marginLeft: 'auto' }}>{entry.category}</span>
+              {entry.categories?.length > 0 && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginLeft: 'auto', justifyContent: 'flex-end' }}>
+                  {entry.categories.map(c => <span key={c} className="chip purple">{c}</span>)}
+                </div>
               )}
             </div>
 

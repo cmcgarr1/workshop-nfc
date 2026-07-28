@@ -192,8 +192,8 @@ export default function InventoryPage() {
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, padding: '4px 0' }}>
                 {nodeContents.map(row => (
                   <span key={row.id} className="chip purple">
-                    {row.item_name || row.category}
-                    {row.item_name && row.category ? ` · ${row.category}` : ''}
+                    {row.item_name || row.categories?.[0]}
+                    {row.item_name && row.categories?.length ? ` · ${row.categories.join(', ')}` : ''}
                   </span>
                 ))}
               </div>

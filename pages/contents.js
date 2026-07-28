@@ -4,6 +4,7 @@ import Head from 'next/head'
 import { IconArrowLeft, IconPlus, IconCheck } from '../lib/icons'
 import { apiFetch } from '../lib/apiFetch'
 import SearchableSelect from '../lib/SearchableSelect'
+import CategoryTagInput from '../lib/CategoryTagInput'
 import { useAuth } from './_app'
 
 function IconPencil() {
@@ -35,7 +36,7 @@ function IconFilter({ active }) {
   )
 }
 
-const emptyForm = { item_name: '', description: '', category: '', parent_item_id: '' }
+const emptyForm = { item_name: '', description: '', categories: [], parent_item_id: '' }
 
 // This page fetches live data from /api/contents on mount. Next.js tries
 // to statically pre-render pages at build time by default, but there's no
@@ -128,7 +129,7 @@ export default function ContentsPage() {
     setForm({
       item_name: row.item_name || '',
       description: row.description || '',
-      category: row.category || '',
+      categories: row.categories || [],
       parent_item_id: row.parent_item_id || ''
     })
     setShowForm(true)
@@ -141,7 +142,7 @@ export default function ContentsPage() {
   }
 
   async function saveForm() {
-    if (!form.item_name.trim() && !form.category.trim()) {
+    if (!form.item_name.trim() && form.categories.length === 0) {
       return alert('Enter an item name or a category')
     }
     setSaving(true)
@@ -160,9 +161,8 @@ export default function ContentsPage() {
     const data = await r.json()
     setSaving(false)
     if (!r.ok) return alert(data.error)
-    if (form.category && !categorySuggestions.includes(form.category)) {
-      setCategorySuggestions(c => [...c, form.category].sort())
-    }
+    const newCategories = data.content?.categories || []
+    setCategorySuggestions(c => [...new Set([...c, ...newCategories])].sort())
     closeForm()
     loadContents()
   }
@@ -177,6 +177,9 @@ export default function ContentsPage() {
   // free-text "contains" filter — both defined further below
 
   function uniqueValues(key) {
+    if (key === 'category') {
+      return [...new Set(contents.flatMap(r => r.categories || []))].sort()
+    }
     return [...new Set(contents.map(r => r[key]).filter(v => v && v !== 'Unassigned'))].sort()
   }
 
@@ -233,15 +236,19 @@ export default function ContentsPage() {
   const filtered = contents
     .filter(r => {
       if (!search) return true
-      const haystack = `${r.item_name} ${r.description} ${r.category} ${r.box_name} ${r.path}`.toLowerCase()
+      const haystack = `${r.item_name} ${r.description} ${(r.categories || []).join(' ')} ${r.box_name} ${r.path}`.toLowerCase()
       return haystack.includes(search.toLowerCase())
     })
-    .filter(r => valueFilterKeys.every(col => !filters[col] || filters[col].length === 0 || filters[col].includes(r[col])))
+    .filter(r => valueFilterKeys.every(col => {
+      if (!filters[col] || filters[col].length === 0) return true
+      if (col === 'category') return (r.categories || []).some(c => filters[col].includes(c))
+      return filters[col].includes(r[col])
+    }))
     .filter(r => !pathFilter.trim() || (r.path || '').toLowerCase().includes(pathFilter.trim().toLowerCase()))
     .slice()
     .sort((a, b) => {
-      const av = a[sortKey] || ''
-      const bv = b[sortKey] || ''
+      const av = sortKey === 'category' ? (a.categories || []).join(', ') : (a[sortKey] || '')
+      const bv = sortKey === 'category' ? (b.categories || []).join(', ') : (b[sortKey] || '')
       let cmp
       if (sortKey === 'date_added' || sortKey === 'updated_at') {
         cmp = new Date(av || 0) - new Date(bv || 0)
@@ -452,7 +459,11 @@ export default function ContentsPage() {
                     <td style={{ padding: '8px 10px', fontWeight: 500 }}>{row.item_name}</td>
                     <td style={{ padding: '8px 10px', color: 'var(--text2)' }}>{row.description || '—'}</td>
                     <td style={{ padding: '8px 10px' }}>
-                      {row.category ? <span className="chip purple">{row.category}</span> : '—'}
+                      {row.categories?.length ? (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                          {row.categories.map(c => <span key={c} className="chip purple">{c}</span>)}
+                        </div>
+                      ) : '—'}
                     </td>
                     <td style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>{fmtDate(row.date_added)}</td>
                     <td style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>{fmtDate(row.updated_at)}</td>
@@ -508,16 +519,12 @@ export default function ContentsPage() {
             </div>
 
             <div className="form-group">
-              <label className="form-label">Category</label>
-              <input
-                placeholder="Type to see suggestions…"
-                list="category-suggestions"
-                value={form.category}
-                onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
+              <label className="form-label">Categories</label>
+              <CategoryTagInput
+                value={form.categories}
+                onChange={v => setForm(f => ({ ...f, categories: v }))}
+                suggestions={categorySuggestions}
               />
-              <datalist id="category-suggestions">
-                {categorySuggestions.map(c => <option key={c} value={c} />)}
-              </datalist>
             </div>
 
             <div className="form-group">
