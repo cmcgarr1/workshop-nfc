@@ -401,8 +401,8 @@ export default function ScanPage() {
 
                       {loggedIn && (
                         <label
-                          className="btn-primary"
-                          style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 500, padding: '8px 12px', cursor: 'pointer', flexShrink: 0 }}
+                          className="action-btn"
+                          style={{ flexDirection: 'row', gap: 6, padding: '8px 12px', fontSize: 13, cursor: 'pointer', flexShrink: 0 }}
                         >
                           <IconCamera />
                           {uploadingPhoto ? 'Uploading…' : item.photo_url ? 'Replace' : 'Add photo'}
@@ -592,17 +592,18 @@ export default function ScanPage() {
                       </table>
                     </div>
                   )}
+                  {loggedIn && (
+                    <button
+                      className="action-btn"
+                      style={{ flexDirection: 'row', gap: 6, width: '100%', marginTop: 10 }}
+                      onClick={() => setDraftRow(d => d || { item_name: '', categories: [] })}
+                    >
+                      <IconPlus /> Add item
+                    </button>
+                  )}
                 </div>
               </div>
               </div>
-
-                {loggedIn && (
-                  <div className="action-grid" style={{ gridTemplateColumns: '1fr' }}>
-                    <button className="action-btn" onClick={() => setDraftRow(d => d || { item_name: '', categories: [] })}>
-                      <IconPlus /> Add item
-                    </button>
-                  </div>
-                )}
               </>
             )}
           </>
