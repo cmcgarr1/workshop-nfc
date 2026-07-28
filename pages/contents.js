@@ -53,7 +53,7 @@ export default function ContentsPage() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
 
-  const [containers, setContainers] = useState([])
+  const [allItems, setAllItems] = useState([])
   const [categorySuggestions, setCategorySuggestions] = useState([])
 
   const [showForm, setShowForm] = useState(false)
@@ -61,7 +61,7 @@ export default function ContentsPage() {
   const [form, setForm] = useState(emptyForm)
   const [saving, setSaving] = useState(false)
 
-  const [filters, setFilters] = useState({})       // { category: ['measuring','cutting'], box_name: [...], location_name: [...] }
+  const [filters, setFilters] = useState({})       // { category: ['measuring','cutting'], box_name: [...] }
   const [pathFilter, setPathFilter] = useState('')
   const [openFilterCol, setOpenFilterCol] = useState(null)
   const [filterSearch, setFilterSearch] = useState('')
@@ -112,7 +112,7 @@ export default function ContentsPage() {
     loadContents()
     apiFetch('/api/items')
       .then(r => r.json())
-      .then(d => setContainers((d.items || []).filter(i => i.type === 'container')))
+      .then(d => setAllItems(d.items || []))
     apiFetch('/api/contents?categories_only=1')
       .then(r => r.json())
       .then(d => setCategorySuggestions(d.categories || []))
@@ -143,7 +143,7 @@ export default function ContentsPage() {
 
   async function saveForm() {
     if (!form.item_name.trim() && form.categories.length === 0) {
-      return alert('Enter an item name or a category')
+      return alert('Enter an item name or at least one category')
     }
     setSaving(true)
     const payload = { ...form, parent_item_id: form.parent_item_id || null }
@@ -218,10 +218,10 @@ export default function ContentsPage() {
   const columns = [
     { key: 'item_name', label: 'Item' },
     { key: 'description', label: 'Description' },
-    { key: 'category', label: 'Category' },
+    { key: 'category', label: 'Categories' },
     { key: 'date_added', label: 'Date added' },
     { key: 'updated_at', label: 'Last updated' },
-    { key: 'box_name', label: 'Box' },
+    { key: 'box_name', label: 'Location' },
     { key: 'path', label: 'Path' },
     ...(loggedIn ? [{ key: null, label: '' }] : [])
   ]
@@ -282,7 +282,7 @@ export default function ContentsPage() {
 
         <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
           <input
-            placeholder="Search item, description, category, box, location…"
+            placeholder="Search item, description, categories, or location…"
             value={search}
             onChange={e => setSearch(e.target.value)}
             style={{ flex: 1 }}
@@ -528,12 +528,12 @@ export default function ContentsPage() {
             </div>
 
             <div className="form-group">
-              <label className="form-label">Box / container</label>
+              <label className="form-label">Location</label>
               <SearchableSelect
                 value={form.parent_item_id}
                 onChange={v => setForm(f => ({ ...f, parent_item_id: v }))}
                 emptyLabel="— unassigned —"
-                options={containers.map(c => ({ value: c.id, label: c.name }))}
+                options={allItems.map(i => ({ value: i.id, label: i.name, sub: i.type }))}
               />
             </div>
 

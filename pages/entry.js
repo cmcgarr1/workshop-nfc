@@ -125,7 +125,7 @@ export default function EntryPage() {
               <div className="form-hint">Set automatically when the item was added — doesn't change on edit.</div>
             </div>
             <div className="form-group">
-              <label className="form-label">Location (box/shelf)</label>
+              <label className="form-label">Location</label>
               <SearchableSelect
                 value={form.parent_item_id}
                 onChange={v => setForm(f => ({ ...f, parent_item_id: v }))}

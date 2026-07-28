@@ -44,7 +44,7 @@ export default function ScanPage() {
   const [contents, setContents] = useState([])
   const [categorySuggestions, setCategorySuggestions] = useState([])
   const [showAddContent, setShowAddContent] = useState(false)
-  const [contentForm, setContentForm] = useState({ item_name: '', description: '', categories: [], date_acquired: todayStr(), is_category: false })
+  const [contentForm, setContentForm] = useState({ item_name: '', description: '', categories: [], date_acquired: todayStr() })
   const [addingContent, setAddingContent] = useState(false)
   const [addAnother, setAddAnother] = useState(false)
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
@@ -149,22 +149,15 @@ export default function ScanPage() {
   }
 
   async function addContentItem() {
-    const payload = contentForm.is_category
-      ? { categories: [contentForm.item_name.trim()] }
-      : { ...contentForm }
-
-    if (contentForm.is_category && !contentForm.item_name.trim()) {
-      return alert('Please enter a category name')
-    }
-    if (!contentForm.is_category && !contentForm.item_name.trim() && contentForm.categories.length === 0) {
-      return alert('Enter an item name, or check Category and enter a category name')
+    if (!contentForm.item_name.trim() && contentForm.categories.length === 0) {
+      return alert('Enter an item name, or add at least one category')
     }
 
     setAddingContent(true)
     const r = await apiFetch('/api/contents', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...payload, parent_item_id: item.id })
+      body: JSON.stringify({ ...contentForm, parent_item_id: item.id })
     })
     const data = await r.json()
     setAddingContent(false)
@@ -173,7 +166,7 @@ export default function ScanPage() {
     // batch of similar items) and only clears the per-item fields.
     setContentForm(f => addAnother
       ? { ...f, item_name: '', description: '' }
-      : { item_name: '', description: '', categories: [], date_acquired: todayStr(), is_category: false })
+      : { item_name: '', description: '', categories: [], date_acquired: todayStr() })
     setShowAddContent(addAnother)
     loadContents(item.id)
     const newCategories = data.content?.categories || []
@@ -519,73 +512,43 @@ export default function ScanPage() {
                 <div className="card">
                   {showAddContent && (
                     <div style={{ background: 'var(--bg2)', borderRadius: 'var(--radius-sm)', padding: 12, marginBottom: 12 }}>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, fontSize: 13, cursor: 'pointer' }}>
+                      <div className="form-group">
+                        <label className="form-label">Item name</label>
                         <input
-                          type="checkbox"
-                          style={{ width: 'auto' }}
-                          checked={contentForm.is_category}
-                          onChange={e => setContentForm(f => ({ ...f, is_category: e.target.checked }))}
+                          placeholder="e.g. Phillips screwdriver"
+                          value={contentForm.item_name}
+                          onChange={e => setContentForm(f => ({ ...f, item_name: e.target.value }))}
                         />
-                        Category <span style={{ color: 'var(--text3)' }}>(no individual item, just a label like "Hand tools")</span>
-                      </label>
-
-                      {contentForm.is_category ? (
-                        <div className="form-group">
-                          <label className="form-label">Category name</label>
-                          <input
-                            placeholder="e.g. Hand tools"
-                            list="category-suggestions"
-                            value={contentForm.item_name}
-                            onChange={e => setContentForm(f => ({ ...f, item_name: e.target.value }))}
-                            spellCheck="true"
-                            autoCorrect="on"
-                            autoCapitalize="words"
-                          />
-                          <datalist id="category-suggestions">
-                            {categorySuggestions.map(c => <option key={c} value={c} />)}
-                          </datalist>
-                        </div>
-                      ) : (
-                        <>
-                          <div className="form-group">
-                            <label className="form-label">Item name</label>
-                            <input
-                              placeholder="e.g. Phillips screwdriver"
-                              value={contentForm.item_name}
-                              onChange={e => setContentForm(f => ({ ...f, item_name: e.target.value }))}
-                            />
-                          </div>
-                          <div className="form-group">
-                            <label className="form-label">Description</label>
-                            <textarea
-                              placeholder="Optional details"
-                              value={contentForm.description}
-                              onChange={e => setContentForm(f => ({ ...f, description: e.target.value }))}
-                              spellCheck="true"
-                              autoCorrect="on"
-                              autoCapitalize="sentences"
-                              rows={2}
-                              style={{ resize: 'vertical' }}
-                            />
-                          </div>
-                          <div className="form-group">
-                            <label className="form-label">Categories</label>
-                            <CategoryTagInput
-                              value={contentForm.categories}
-                              onChange={v => setContentForm(f => ({ ...f, categories: v }))}
-                              suggestions={categorySuggestions}
-                            />
-                          </div>
-                          <div className="form-group">
-                            <label className="form-label">Date acquired</label>
-                            <input
-                              type="date"
-                              value={contentForm.date_acquired}
-                              onChange={e => setContentForm(f => ({ ...f, date_acquired: e.target.value }))}
-                            />
-                          </div>
-                        </>
-                      )}
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label">Description</label>
+                        <textarea
+                          placeholder="Optional details"
+                          value={contentForm.description}
+                          onChange={e => setContentForm(f => ({ ...f, description: e.target.value }))}
+                          spellCheck="true"
+                          autoCorrect="on"
+                          autoCapitalize="sentences"
+                          rows={2}
+                          style={{ resize: 'vertical' }}
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label">Categories</label>
+                        <CategoryTagInput
+                          value={contentForm.categories}
+                          onChange={v => setContentForm(f => ({ ...f, categories: v }))}
+                          suggestions={categorySuggestions}
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label">Date acquired</label>
+                        <input
+                          type="date"
+                          value={contentForm.date_acquired}
+                          onChange={e => setContentForm(f => ({ ...f, date_acquired: e.target.value }))}
+                        />
+                      </div>
 
                       <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, fontSize: 13, cursor: 'pointer' }}>
                         <input
@@ -612,7 +575,7 @@ export default function ScanPage() {
                       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                         <thead>
                           <tr style={{ borderBottom: '1px solid var(--border2)', textAlign: 'left' }}>
-                            {['Name', 'Category', ...(loggedIn ? [''] : [])].map(h => (
+                            {['Name', 'Categories', ...(loggedIn ? [''] : [])].map(h => (
                               <th key={h} style={{ padding: '6px 8px', color: 'var(--text2)', fontWeight: 500, whiteSpace: 'nowrap' }}>{h}</th>
                             ))}
                           </tr>
