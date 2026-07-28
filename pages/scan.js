@@ -369,142 +369,139 @@ export default function ScanPage() {
               <>
               <div className="scan-grid">
               <div className="scan-col-main">
-                <div className="card">
+                <div className="card" style={{ border: `2px solid ${item.type === 'location' ? 'var(--blue-text)' : 'var(--purple-border)'}` }}>
                   {(item.photo_url || loggedIn) && (
-                    <div style={{ marginBottom: 14 }}>
+                    <div style={{ background: item.type === 'location' ? 'var(--blue-bg)' : 'var(--purple-bg)', borderRadius: 'var(--radius-sm)', padding: 6, marginBottom: 14 }}>
                       {item.photo_url ? (
-                        <a href={item.photo_url} target="_blank" rel="noopener noreferrer">
+                        <a href={item.photo_url} target="_blank" rel="noopener noreferrer" style={{ display: 'block', width: '100%', aspectRatio: '4 / 3' }}>
                           <img
                             src={item.photo_url}
                             alt={item.name}
-                            style={{ width: '100%', maxHeight: 320, objectFit: 'contain', background: 'var(--bg2)', borderRadius: 'var(--radius-sm)', display: 'block', cursor: 'pointer' }}
+                            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', cursor: 'pointer', borderRadius: 4 }}
                           />
                         </a>
                       ) : (
-                        <div
-                          style={{
-                            width: '100%', height: 140, borderRadius: 'var(--radius-sm)',
-                            border: '1px dashed var(--border2)', display: 'flex', alignItems: 'center',
-                            justifyContent: 'center', color: 'var(--text3)', fontSize: 13
-                          }}
-                        >
+                        <div style={{ width: '100%', aspectRatio: '4 / 3', background: 'var(--bg2)', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text3)', fontSize: 13 }}>
                           No photo yet
                         </div>
                       )}
                     </div>
                   )}
 
-                  <div className="item-head">
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      {view === 'edit' ? (
-                        <input
-                          value={editForm.name}
-                          onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
-                          style={{ fontWeight: 600, fontSize: 22, padding: '4px 8px' }}
-                        />
-                      ) : (
-                        <div className="item-name-lg">{item.name}</div>
+                  <div>
+                    <div className="item-head">
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        {view !== 'edit' && (
+                          <div style={{ fontSize: 11, fontWeight: 500, letterSpacing: '0.08em', textTransform: 'uppercase', color: item.type === 'location' ? 'var(--blue-text)' : 'var(--purple-text)', marginBottom: 4 }}>
+                            {item.type === 'location' ? 'Location' : 'Container'}
+                          </div>
+                        )}
+                        {view === 'edit' ? (
+                          <input
+                            value={editForm.name}
+                            onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
+                            style={{ fontWeight: 600, fontSize: 22, padding: '4px 8px' }}
+                          />
+                        ) : (
+                          <div className="item-name-lg">{item.name}</div>
+                        )}
+                      </div>
+
+                      {loggedIn && (
+                        <label
+                          className="btn-primary"
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 500, padding: '8px 12px', cursor: 'pointer', flexShrink: 0 }}
+                        >
+                          <IconCamera />
+                          {uploadingPhoto ? 'Uploading…' : item.photo_url ? 'Replace' : 'Add photo'}
+                          <input
+                            type="file"
+                            accept="image/*"
+                            style={{ display: 'none' }}
+                            disabled={uploadingPhoto}
+                            onChange={e => uploadPhoto(e.target.files?.[0])}
+                          />
+                        </label>
+                      )}
+
+                      {view === 'edit' && (
+                        <div className="type-toggle" style={{ margin: 0 }}>
+                          <button
+                            className={`type-opt${editForm.type === 'container' ? ' active' : ''}`}
+                            style={{ padding: '4px 10px', fontSize: 12 }}
+                            onClick={() => setEditForm(f => ({ ...f, type: 'container' }))}
+                          >
+                            Container
+                          </button>
+                          <button
+                            className={`type-opt${editForm.type === 'location' ? ' active' : ''}`}
+                            style={{ padding: '4px 10px', fontSize: 12 }}
+                            onClick={() => setEditForm(f => ({ ...f, type: 'location' }))}
+                          >
+                            Location
+                          </button>
+                        </div>
                       )}
                     </div>
 
-                    {loggedIn && (
-                      <label
-                        className="btn-primary"
-                        style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 500, padding: '8px 12px', cursor: 'pointer', flexShrink: 0 }}
-                      >
-                        <IconCamera />
-                        {uploadingPhoto ? 'Uploading…' : item.photo_url ? 'Replace' : 'Add photo'}
-                        <input
-                          type="file"
-                          accept="image/*"
-                          style={{ display: 'none' }}
-                          disabled={uploadingPhoto}
-                          onChange={e => uploadPhoto(e.target.files?.[0])}
-                        />
-                      </label>
-                    )}
-
-                    {view === 'edit' ? (
-                      <div className="type-toggle" style={{ margin: 0 }}>
-                        <button
-                          className={`type-opt${editForm.type === 'container' ? ' active' : ''}`}
-                          style={{ padding: '4px 10px', fontSize: 12 }}
-                          onClick={() => setEditForm(f => ({ ...f, type: 'container' }))}
-                        >
-                          Container
-                        </button>
-                        <button
-                          className={`type-opt${editForm.type === 'location' ? ' active' : ''}`}
-                          style={{ padding: '4px 10px', fontSize: 12 }}
-                          onClick={() => setEditForm(f => ({ ...f, type: 'location' }))}
-                        >
-                          Location
-                        </button>
+                    {item.parent_id && itemPath && (
+                      <div style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 12, fontFamily: 'monospace', wordBreak: 'break-word' }}>
+                        {itemPath}
                       </div>
-                    ) : (
-                      <span className={`chip${item.type === 'location' ? ' blue' : ' purple'}`}>
-                        {item.type === 'location' ? 'Location' : 'Container'}
-                      </span>
                     )}
-                  </div>
 
-                  {item.parent_id && itemPath && (
-                    <div style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 12, fontFamily: 'monospace', wordBreak: 'break-word' }}>
-                      {itemPath}
-                    </div>
-                  )}
-
-                  <div className="meta">
-                    <div className="meta-row">
-                      <IconSitemap />
-                      <span className="meta-label">Location</span>
+                    <div className="meta">
+                      <div className="meta-row">
+                        <IconSitemap />
+                        <span className="meta-label">Location</span>
+                        {view === 'edit' ? (
+                          <SearchableSelect
+                            style={{ marginLeft: 'auto', width: '60%' }}
+                            value={editForm.parent_id}
+                            onChange={v => setEditForm(f => ({ ...f, parent_id: v }))}
+                            options={allItems.filter(i => i.id !== item.id).map(i => ({ value: i.id, label: i.name, sub: i.type }))}
+                          />
+                        ) : (
+                          <span className="meta-value">
+                            {item.parent_id
+                              ? <span className="chip blue">
+                                  {allItems.find(i => i.id === item.parent_id)?.name || item.parent_id}
+                                </span>
+                              : <span style={{ color: 'var(--text3)' }}>Unassigned</span>
+                            }
+                          </span>
+                        )}
+                      </div>
                       {view === 'edit' ? (
-                        <SearchableSelect
-                          style={{ marginLeft: 'auto', width: '60%' }}
-                          value={editForm.parent_id}
-                          onChange={v => setEditForm(f => ({ ...f, parent_id: v }))}
-                          options={allItems.filter(i => i.id !== item.id).map(i => ({ value: i.id, label: i.name, sub: i.type }))}
-                        />
-                      ) : (
-                        <span className="meta-value">
-                          {item.parent_id
-                            ? <span className="chip blue">
-                                {allItems.find(i => i.id === item.parent_id)?.name || item.parent_id}
-                              </span>
-                            : <span style={{ color: 'var(--text3)' }}>Unassigned</span>
-                          }
-                        </span>
-                      )}
+                        <div className="meta-row">
+                          <IconNote />
+                          <span className="meta-label">Notes</span>
+                          <input
+                            value={editForm.notes}
+                            onChange={e => setEditForm(f => ({ ...f, notes: e.target.value }))}
+                            placeholder="Notes…"
+                            style={{ marginLeft: 'auto', width: '60%', fontSize: 13, padding: '3px 8px' }}
+                          />
+                        </div>
+                      ) : item.notes ? (
+                        <div className="meta-row">
+                          <IconNote />
+                          <span className="meta-value" style={{ marginLeft: 0 }}>{item.notes}</span>
+                        </div>
+                      ) : null}
                     </div>
-                    {view === 'edit' ? (
-                      <div className="meta-row">
-                        <IconNote />
-                        <span className="meta-label">Notes</span>
-                        <input
-                          value={editForm.notes}
-                          onChange={e => setEditForm(f => ({ ...f, notes: e.target.value }))}
-                          placeholder="Notes…"
-                          style={{ marginLeft: 'auto', width: '60%', fontSize: 13, padding: '3px 8px' }}
-                        />
-                      </div>
-                    ) : item.notes ? (
-                      <div className="meta-row">
-                        <IconNote />
-                        <span className="meta-value" style={{ marginLeft: 0 }}>{item.notes}</span>
-                      </div>
-                    ) : null}
-                  </div>
 
-                  {view === 'edit' && (
-                    <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
-                      <button className="btn-primary save-btn" style={{ flex: 1 }} onClick={saveEdit} disabled={saving}>
-                        <IconCheck /> {saving ? 'Saving…' : 'Save'}
-                      </button>
-                      <button className="btn-ghost" style={{ padding: '10px 14px' }} onClick={() => setView('main')}>
-                        Cancel
-                      </button>
-                    </div>
-                  )}
+                    {view === 'edit' && (
+                      <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+                        <button className="btn-primary save-btn" style={{ flex: 1 }} onClick={saveEdit} disabled={saving}>
+                          <IconCheck /> {saving ? 'Saving…' : 'Save'}
+                        </button>
+                        <button className="btn-ghost" style={{ padding: '10px 14px' }} onClick={() => setView('main')}>
+                          Cancel
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 
