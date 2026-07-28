@@ -80,20 +80,6 @@ export default function InventoryPage() {
     setRootsAutoExpanded(true)
   }, [loading, items])
 
-  function EyeIcon({ open }) {
-    return open ? (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z" />
-        <circle cx="12" cy="12" r="3" />
-      </svg>
-    ) : (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a18.5 18.5 0 0 1 4.22-5.94M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19M14.12 14.12a3 3 0 1 1-4.24-4.24" />
-        <path d="M1 1l22 22" />
-      </svg>
-    )
-  }
-
   function getParentName(parentId) {
     if (!parentId) return 'Unassigned'
     return items.find(i => i.id === parentId)?.name || parentId
@@ -177,30 +163,24 @@ export default function InventoryPage() {
     if (subLocationCount > 0) subParts.push(`${subLocationCount} sub-location${subLocationCount !== 1 ? 's' : ''}`)
     subParts.push(`${itemCount} item${itemCount !== 1 ? 's' : ''}`)
 
+    const shownContents = nodeContents.slice(0, 3)
+    const hiddenCount = nodeContents.length - shownContents.length
+
     return (
       <>
-        <div className="inv-item" style={{ marginLeft: depth * 18 }}>
-          <button
-            className="btn-ghost"
-            style={{ padding: 6, flexShrink: 0 }}
-            onClick={e => { e.stopPropagation(); toggleExpand(node) }}
-            aria-label={isOpen ? 'Hide contents' : 'Show contents'}
-          >
-            <EyeIcon open={isOpen} />
-          </button>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, cursor: 'pointer' }} onClick={() => router.push(`/scan?id=${node.id}`)}>
-            <div className={`inv-item-icon ${node.type === 'location' ? 'loc' : 'con'}`}>
-              {node.type === 'location' ? <IconLayers /> : <IconPackage />}
+        <div
+          className="inv-item"
+          style={{ marginLeft: depth * 18, cursor: 'pointer' }}
+          onClick={() => (isOpen ? router.push(`/scan?id=${node.id}`) : toggleExpand(node))}
+        >
+          <div>
+            <div className="inv-item-name">{node.name}</div>
+            <div className="inv-item-sub">
+              {subParts.join(' · ')}
+              {node.notes ? ` · ${node.notes}` : ''}
             </div>
-            <div>
-              <div className="inv-item-name">{node.name}</div>
-              <div className="inv-item-sub">
-                {subParts.join(' · ')}
-                {node.notes ? ` · ${node.notes}` : ''}
-              </div>
-            </div>
-            <div className="inv-item-arrow" style={{ marginLeft: 'auto' }}><IconArrowRight /></div>
           </div>
+          <div className="inv-item-arrow" style={{ marginLeft: 'auto' }}><IconArrowRight /></div>
         </div>
 
         {isOpen && (
@@ -211,12 +191,15 @@ export default function InventoryPage() {
               <div style={{ fontSize: 12, color: 'var(--text3)', padding: '4px 0' }}>Nothing logged here yet</div>
             ) : (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, padding: '4px 0' }}>
-                {nodeContents.map(row => (
+                {shownContents.map(row => (
                   <span key={row.id} className="chip purple">
                     {row.item_name || row.categories?.[0]}
                     {row.item_name && row.categories?.length ? ` · ${row.categories.join(', ')}` : ''}
                   </span>
                 ))}
+                {hiddenCount > 0 && (
+                  <span className="chip" style={{ color: 'var(--text2)' }}>+{hiddenCount} more</span>
+                )}
               </div>
             )}
           </div>
