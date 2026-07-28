@@ -30,9 +30,6 @@ export default function InventoryPage() {
     return matchFilter && matchSearch
   })
 
-  const locations = items.filter(i => i.type === 'location')
-  const containers = items.filter(i => i.type === 'container')
-
   const [expanded, setExpanded] = useState(new Set())
   const [contentsCache, setContentsCache] = useState({})
   const [contentsLoading, setContentsLoading] = useState({})
@@ -73,6 +70,16 @@ export default function InventoryPage() {
     })
   }
 
+  // Top-level locations start expanded so their contents are visible
+  // immediately, without needing to click the eye icon first. Only runs
+  // once per page load — collapsing one afterward stays collapsed.
+  const [rootsAutoExpanded, setRootsAutoExpanded] = useState(false)
+  useEffect(() => {
+    if (loading || rootsAutoExpanded || items.length === 0) return
+    buildTree().forEach(node => toggleExpand(node))
+    setRootsAutoExpanded(true)
+  }, [loading, items])
+
   function EyeIcon({ open }) {
     return open ? (
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -109,8 +116,10 @@ export default function InventoryPage() {
   }
 
   // Builds a nested tree: top-level items (no parent) first, each with its
-  // children attached recursively, sorted alphabetically at every level so
-  // the hierarchy reads top-to-bottom the way you'd actually walk the shop.
+  // children attached recursively. Siblings are sorted by "rarity" — the
+  // total count of locations/containers nested inside them, recursively,
+  // not just direct children — so the most built-out parts of the shop
+  // surface first; ties fall back to alphabetical.
   function buildTree() {
     const byParent = {}
     items.forEach(i => {
@@ -118,7 +127,19 @@ export default function InventoryPage() {
       if (!byParent[key]) byParent[key] = []
       byParent[key].push(i)
     })
-    Object.values(byParent).forEach(list => list.sort((a, b) => a.name.localeCompare(b.name)))
+
+    const nestedCountCache = {}
+    function countNested(id) {
+      if (nestedCountCache[id] !== undefined) return nestedCountCache[id]
+      const kids = byParent[id] || []
+      const total = kids.reduce((sum, k) => sum + 1 + countNested(k.id), 0)
+      nestedCountCache[id] = total
+      return total
+    }
+
+    Object.values(byParent).forEach(list =>
+      list.sort((a, b) => countNested(b.id) - countNested(a.id) || a.name.localeCompare(b.name))
+    )
 
     function attach(item) {
       return { ...item, children: (byParent[item.id] || []).map(attach) }
@@ -231,21 +252,6 @@ export default function InventoryPage() {
           <div className="loading"><div className="spinner" />Loading…</div>
         ) : (
           <>
-            <div className="inv-stats">
-              <div className="inv-stat">
-                <div className="inv-stat-val">{locations.length}</div>
-                <div className="inv-stat-lbl">Locations</div>
-              </div>
-              <div className="inv-stat">
-                <div className="inv-stat-val">{containers.length}</div>
-                <div className="inv-stat-lbl">Containers</div>
-              </div>
-              <div className="inv-stat">
-                <div className="inv-stat-val">{items.length}</div>
-                <div className="inv-stat-lbl">Total</div>
-              </div>
-            </div>
-
             <input
               placeholder="Search to filter, or browse the hierarchy below…"
               value={search}
