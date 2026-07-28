@@ -61,9 +61,36 @@ export default function NewTagPage() {
   const [copied, setCopied] = useState(false)
   const [existingIds, setExistingIds] = useState([])
 
+  // True when this page is opened inside the Workshop NFC companion app's
+  // WebView (rather than a normal mobile browser). The app injects this
+  // global before the page loads.
+  const [inApp, setInApp] = useState(false)
+  const [nfcStatus, setNfcStatus] = useState('idle') // 'idle' | 'writing' | 'error'
+  const [nfcError, setNfcError] = useState('')
+
   useEffect(() => {
     if (loggedIn === false) router.replace('/login')
   }, [loggedIn])
+
+  useEffect(() => {
+    setInApp(typeof window !== 'undefined' && !!window.ReactNativeWebView)
+  }, [])
+
+  // The app calls window.onNfcWriteResult(...) via injectJavaScript once the
+  // native write finishes, rather than us listening for a generic postMessage
+  // event (delivery of native->web messages differs between iOS/Android).
+  useEffect(() => {
+    if (!inApp) return
+    window.onNfcWriteResult = (result) => {
+      if (result?.ok) {
+        router.push(`/scan?id=${id}&prefill_name=${encodeURIComponent(name)}`)
+      } else {
+        setNfcStatus('error')
+        setNfcError(result?.error || 'Could not write the tag. Try again.')
+      }
+    }
+    return () => { delete window.onNfcWriteResult }
+  }, [inApp, id, name, router])
 
   useEffect(() => {
     apiFetch('/api/items')
@@ -79,7 +106,7 @@ export default function NewTagPage() {
   // uses the full `url` (with scheme) since that's needed for a phone
   // camera to recognize and open it as a link.
   const writeUrl = url.replace(/^https?:\/\//, '')
-  const { canvasRef, ready } = useQrCode(url)
+  const { canvasRef, ready } = useQrCode(inApp ? '' : url)
   const isDuplicate = id && existingIds.includes(id)
 
   if (!loggedIn) return null
@@ -100,6 +127,13 @@ export default function NewTagPage() {
       // Clipboard API can fail on non-HTTPS/older browsers — fall back
       // to selecting the text so the person can copy manually.
     }
+  }
+
+  function writeViaNfc() {
+    if (!id || isDuplicate) return
+    setNfcStatus('writing')
+    setNfcError('')
+    window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'WRITE_NFC', url, id, name }))
   }
 
   return (
@@ -141,43 +175,62 @@ export default function NewTagPage() {
             )}
           </div>
 
-          <div className="section-label" style={{ marginBottom: 14 }}>Scan this with your NFC writer app</div>
-
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'center',
-              padding: 14,
-              background: '#ffffff',
-              borderRadius: 'var(--radius)',
-              marginBottom: 16,
-              minHeight: 220,
-              alignItems: 'center'
-            }}
-          >
-            <canvas ref={canvasRef} width={220} height={220} style={{ opacity: ready && id ? 1 : 0 }} />
-          </div>
-
-          <div className="form-group" style={{ textAlign: 'left' }}>
-            <label className="form-label">URL to write</label>
-            <div className="id-row">
-              <input className="prefilled" value={writeUrl || 'Type a name above first…'} readOnly />
-              <button className="btn-ghost" onClick={copyUrl} disabled={!id}>
-                {copied ? 'Copied' : 'Copy'}
+          {inApp ? (
+            <>
+              {nfcStatus === 'error' && (
+                <div className="form-hint" style={{ color: '#A32D2D', marginBottom: 14 }}>
+                  {nfcError}
+                </div>
+              )}
+              <button
+                className="btn-primary save-btn"
+                disabled={!id || isDuplicate || nfcStatus === 'writing'}
+                onClick={writeViaNfc}
+              >
+                <IconNfc /> {nfcStatus === 'writing' ? 'Hold tag near phone…' : 'Write via NFC'}
               </button>
-            </div>
-            <div className="form-hint">
-              In your NFC writer app, choose "Write URL" and paste this in
-            </div>
-          </div>
+            </>
+          ) : (
+            <>
+              <div className="section-label" style={{ marginBottom: 14 }}>Scan this with your NFC writer app</div>
 
-          <button
-            className="btn-primary save-btn"
-            disabled={!id || isDuplicate}
-            onClick={() => router.push(`/scan?id=${id}&prefill_name=${encodeURIComponent(name)}`)}
-          >
-            <IconArrowRight /> I wrote it — scan now
-          </button>
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  padding: 14,
+                  background: '#ffffff',
+                  borderRadius: 'var(--radius)',
+                  marginBottom: 16,
+                  minHeight: 220,
+                  alignItems: 'center'
+                }}
+              >
+                <canvas ref={canvasRef} width={220} height={220} style={{ opacity: ready && id ? 1 : 0 }} />
+              </div>
+
+              <div className="form-group" style={{ textAlign: 'left' }}>
+                <label className="form-label">URL to write</label>
+                <div className="id-row">
+                  <input className="prefilled" value={writeUrl || 'Type a name above first…'} readOnly />
+                  <button className="btn-ghost" onClick={copyUrl} disabled={!id}>
+                    {copied ? 'Copied' : 'Copy'}
+                  </button>
+                </div>
+                <div className="form-hint">
+                  In your NFC writer app, choose "Write URL" and paste this in
+                </div>
+              </div>
+
+              <button
+                className="btn-primary save-btn"
+                disabled={!id || isDuplicate}
+                onClick={() => router.push(`/scan?id=${id}&prefill_name=${encodeURIComponent(name)}`)}
+              >
+                <IconArrowRight /> I wrote it — scan now
+              </button>
+            </>
+          )}
         </div>
 
         <div className="inventory-link" onClick={() => router.push('/inventory')}>
