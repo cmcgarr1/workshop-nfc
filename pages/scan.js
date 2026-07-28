@@ -2,20 +2,13 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/router'
 import Head from 'next/head'
 import {
-  IconPackage, IconLayers, IconCheck, IconNfc, IconEdit,
-  IconMove, IconList, IconArrowLeft, IconNote,
+  IconPackage, IconLayers, IconCheck, IconNfc, IconEdit, IconNote,
   IconSitemap, IconTrash, IconTool, IconArrowRight, IconPlus, IconCamera
 } from '../lib/icons'
 import { apiFetch } from '../lib/apiFetch'
 import SearchableSelect from '../lib/SearchableSelect'
 import CategoryTagInput from '../lib/CategoryTagInput'
 import { useAuth } from './_app'
-
-function todayStr() {
-  const d = new Date()
-  const tzOffsetMs = d.getTimezoneOffset() * 60000
-  return new Date(d.getTime() - tzOffsetMs).toISOString().slice(0, 10)
-}
 
 function genId(name) {
   const base = name
@@ -43,10 +36,8 @@ export default function ScanPage() {
 
   const [contents, setContents] = useState([])
   const [categorySuggestions, setCategorySuggestions] = useState([])
-  const [showAddContent, setShowAddContent] = useState(false)
-  const [contentForm, setContentForm] = useState({ item_name: '', description: '', categories: [], date_acquired: todayStr() })
-  const [addingContent, setAddingContent] = useState(false)
-  const [addAnother, setAddAnother] = useState(false)
+  const [draftRow, setDraftRow] = useState(null)
+  const [savingDraft, setSavingDraft] = useState(false)
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
 
   function loadContents(parentId) {
@@ -90,7 +81,7 @@ export default function ScanPage() {
   }, [id, prefill_name])
 
   useEffect(() => {
-    if (status === 'new' || view === 'edit' || view === 'move') {
+    if (status === 'new' || view === 'edit') {
       apiFetch('/api/items')
         .then(r => r.json())
         .then(d => setAllItems(d.items || []))
@@ -135,43 +126,32 @@ export default function ScanPage() {
     showToast('Saved!')
   }
 
-  async function moveItem(newParentId) {
-    const r = await apiFetch(`/api/items?id=${encodeURIComponent(id)}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...item, parent_id: newParentId || null })
-    })
-    const data = await r.json()
-    if (!r.ok) return alert(data.error)
-    setItem(data.item)
-    setView('main')
-    showToast('Moved!')
-  }
-
-  async function addContentItem() {
-    if (!contentForm.item_name.trim() && contentForm.categories.length === 0) {
-      return alert('Enter an item name, or add at least one category')
+  // Commits the in-table draft row (blank Name/Categories fields that
+  // appear directly above the contents list when "Add item" is clicked).
+  // continueAdding leaves a fresh blank draft row in place afterward, so
+  // typing a name and hitting Enter repeatedly logs one item after another
+  // without reopening a separate form each time.
+  async function commitDraftRow(continueAdding) {
+    if (!draftRow) return
+    const hasContent = draftRow.item_name.trim() || draftRow.categories.length > 0
+    if (!hasContent) {
+      setDraftRow(continueAdding ? { item_name: '', categories: [] } : null)
+      return
     }
 
-    setAddingContent(true)
+    setSavingDraft(true)
     const r = await apiFetch('/api/contents', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...contentForm, parent_item_id: item.id })
+      body: JSON.stringify({ ...draftRow, parent_item_id: item.id })
     })
     const data = await r.json()
-    setAddingContent(false)
+    setSavingDraft(false)
     if (!r.ok) return alert(data.error)
-    // Adding another keeps categories/date filled in (usually the same for a
-    // batch of similar items) and only clears the per-item fields.
-    setContentForm(f => addAnother
-      ? { ...f, item_name: '', description: '' }
-      : { item_name: '', description: '', categories: [], date_acquired: todayStr() })
-    setShowAddContent(addAnother)
+    setDraftRow(continueAdding ? { item_name: '', categories: [] } : null)
     loadContents(item.id)
     const newCategories = data.content?.categories || []
     setCategorySuggestions(c => [...new Set([...c, ...newCategories])].sort())
-    showToast('Item added!')
   }
 
   async function deleteContentItem(id) {
@@ -249,9 +229,6 @@ export default function ScanPage() {
     setItem(data.item)
     showToast('Photo updated!')
   }
-
-  const parentItem = item && allItems.find(i => i.id === item.parent_id)
-  const locations = allItems.filter(i => i.type === 'location' && i.id !== id)
 
   return (
     <>
@@ -408,6 +385,21 @@ export default function ScanPage() {
                       </div>
 
                       {loggedIn && (
+                        <button
+                          className={`action-btn${view === 'edit' ? ' primary' : ''}`}
+                          style={{ flexDirection: 'row', gap: 6, padding: '8px 12px', fontSize: 13, flexShrink: 0 }}
+                          onClick={() => {
+                            if (view === 'edit') { setView('main') } else {
+                              setView('edit')
+                              apiFetch('/api/items').then(r => r.json()).then(d => setAllItems(d.items || []))
+                            }
+                          }}
+                        >
+                          <IconEdit /> {view === 'edit' ? 'Done' : 'Edit'}
+                        </button>
+                      )}
+
+                      {loggedIn && (
                         <label
                           className="btn-primary"
                           style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 500, padding: '8px 12px', cursor: 'pointer', flexShrink: 0 }}
@@ -507,63 +499,7 @@ export default function ScanPage() {
 
               <div className="scan-col-side">
                 <div className="card">
-                  {showAddContent && (
-                    <div style={{ background: 'var(--bg2)', borderRadius: 'var(--radius-sm)', padding: 12, marginBottom: 12 }}>
-                      <div className="form-group">
-                        <label className="form-label">Item name</label>
-                        <input
-                          placeholder="e.g. Phillips screwdriver"
-                          value={contentForm.item_name}
-                          onChange={e => setContentForm(f => ({ ...f, item_name: e.target.value }))}
-                        />
-                      </div>
-                      <div className="form-group">
-                        <label className="form-label">Description</label>
-                        <textarea
-                          placeholder="Optional details"
-                          value={contentForm.description}
-                          onChange={e => setContentForm(f => ({ ...f, description: e.target.value }))}
-                          spellCheck="true"
-                          autoCorrect="on"
-                          autoCapitalize="sentences"
-                          rows={2}
-                          style={{ resize: 'vertical' }}
-                        />
-                      </div>
-                      <div className="form-group">
-                        <label className="form-label">Categories</label>
-                        <CategoryTagInput
-                          value={contentForm.categories}
-                          onChange={v => setContentForm(f => ({ ...f, categories: v }))}
-                          suggestions={categorySuggestions}
-                        />
-                      </div>
-                      <div className="form-group">
-                        <label className="form-label">Date acquired</label>
-                        <input
-                          type="date"
-                          value={contentForm.date_acquired}
-                          onChange={e => setContentForm(f => ({ ...f, date_acquired: e.target.value }))}
-                        />
-                      </div>
-
-                      <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, fontSize: 13, cursor: 'pointer' }}>
-                        <input
-                          type="checkbox"
-                          style={{ width: 'auto' }}
-                          checked={addAnother}
-                          onChange={e => setAddAnother(e.target.checked)}
-                        />
-                        Keep this form open to add another after saving
-                      </label>
-
-                      <button className="btn-primary save-btn" onClick={addContentItem} disabled={addingContent}>
-                        <IconCheck /> {addingContent ? 'Adding…' : addAnother ? 'Add & keep adding' : 'Add to contents'}
-                      </button>
-                    </div>
-                  )}
-
-                  {contents.length === 0 && children.length === 0 ? (
+                  {contents.length === 0 && children.length === 0 && !draftRow ? (
                     <div style={{ textAlign: 'center', color: 'var(--text3)', fontSize: 13, padding: '12px 0' }}>
                       No items logged yet
                     </div>
@@ -578,6 +514,39 @@ export default function ScanPage() {
                           </tr>
                         </thead>
                         <tbody>
+                          {draftRow && (
+                            <tr style={{ borderBottom: '0.5px solid var(--border)' }}>
+                              <td style={{ padding: '4px 6px' }}>
+                                <input
+                                  autoFocus
+                                  placeholder="Item name…"
+                                  value={draftRow.item_name}
+                                  onChange={e => setDraftRow(d => ({ ...d, item_name: e.target.value }))}
+                                  onKeyDown={e => { if (e.key === 'Enter') commitDraftRow(true) }}
+                                  style={{ fontSize: 12, padding: '4px 6px' }}
+                                />
+                              </td>
+                              <td style={{ padding: '4px 6px' }}>
+                                <CategoryTagInput
+                                  value={draftRow.categories}
+                                  onChange={v => setDraftRow(d => ({ ...d, categories: v }))}
+                                  suggestions={categorySuggestions}
+                                />
+                              </td>
+                              {loggedIn && (
+                                <td style={{ padding: '4px 6px', whiteSpace: 'nowrap' }}>
+                                  <button className="btn-ghost" style={{ padding: '3px 7px' }} onClick={() => commitDraftRow(false)} disabled={savingDraft} aria-label="Save item">
+                                    <IconCheck />
+                                  </button>
+                                  <button className="btn-ghost" style={{ padding: '3px 7px' }} onClick={() => setDraftRow(null)} aria-label="Discard">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                      <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                                    </svg>
+                                  </button>
+                                </td>
+                              )}
+                            </tr>
+                          )}
                           {children.map(c => (
                             <tr
                               key={c.id}
@@ -627,74 +596,13 @@ export default function ScanPage() {
               </div>
               </div>
 
-                <div className="action-grid" style={{ gridTemplateColumns: loggedIn ? '1fr 1fr 1fr 1fr' : '1fr' }}>
-                  {loggedIn && (
-                    <button className="action-btn" onClick={() => setShowAddContent(s => !s)}>
+                {loggedIn && (
+                  <div className="action-grid" style={{ gridTemplateColumns: '1fr' }}>
+                    <button className="action-btn" onClick={() => setDraftRow(d => d || { item_name: '', categories: [] })}>
                       <IconPlus /> Add item
                     </button>
-                  )}
-                  {loggedIn && (
-                    <button
-                      className={`action-btn${view === 'edit' ? ' primary' : ''}`}
-                      onClick={() => {
-                        if (view === 'edit') { setView('main') } else {
-                          setView('edit')
-                          apiFetch('/api/items').then(r => r.json()).then(d => setAllItems(d.items || []))
-                        }
-                      }}
-                    >
-                      <IconEdit /> {view === 'edit' ? 'Done' : 'Edit'}
-                    </button>
-                  )}
-                  {loggedIn && (
-                    <button className="action-btn" onClick={() => { setView('move'); apiFetch('/api/items').then(r=>r.json()).then(d=>setAllItems(d.items||[])) }}>
-                      <IconMove /> Move
-                    </button>
-                  )}
-                  <button className="action-btn primary" onClick={() => router.push('/inventory')}>
-                    <IconList /> Inventory
-                  </button>
-                </div>
-              </>
-            )}
-
-            {view === 'move' && (
-              <>
-                <div className="back-link" onClick={() => setView('main')}>
-                  <IconArrowLeft /> Back
-                </div>
-                <div className="card">
-                  <div className="section-label" style={{ marginBottom: 12 }}>Move to location</div>
-                  <div
-                    className="inv-item"
-                    style={{ borderColor: !item.parent_id ? 'var(--purple-border)' : undefined }}
-                    onClick={() => moveItem(null)}
-                  >
-                    <div className="inv-item-icon loc"><IconLayers /></div>
-                    <div>
-                      <div className="inv-item-name">Unassigned</div>
-                      <div className="inv-item-sub">Remove from current location</div>
-                    </div>
-                    {!item.parent_id && <span className="chip purple" style={{ marginLeft: 'auto' }}>Current</span>}
                   </div>
-                  {locations.map(loc => (
-                    <div
-                      key={loc.id}
-                      className="inv-item"
-                      style={{ borderColor: item.parent_id === loc.id ? 'var(--purple-border)' : undefined }}
-                      onClick={() => moveItem(loc.id)}
-                    >
-                      <div className="inv-item-icon loc"><IconLayers /></div>
-                      <div>
-                        <div className="inv-item-name">{loc.name}</div>
-                        <div className="inv-item-sub">{loc.notes || loc.id}</div>
-                      </div>
-                      {item.parent_id === loc.id && (
-                        <span className="chip purple" style={{ marginLeft: 'auto' }}>Current</span>
-                      )}
-                    </div>
-                  ))}
-                </div>
+                )}
               </>
             )}
           </>
