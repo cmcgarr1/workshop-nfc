@@ -53,7 +53,7 @@ export default function App({ Component, pageProps }) {
             {loggedIn ? (
               <button
                 className="btn-ghost"
-                style={{ fontSize: 12, padding: '6px 10px' }}
+                style={{ fontSize: 12, padding: '6px 10px', background: 'var(--bg)' }}
                 onClick={() => supabase.auth.signOut()}
               >
                 Sign out
@@ -61,7 +61,7 @@ export default function App({ Component, pageProps }) {
             ) : (
               <button
                 className="btn-ghost"
-                style={{ fontSize: 12, padding: '6px 10px' }}
+                style={{ fontSize: 12, padding: '6px 10px', background: 'var(--bg)' }}
                 onClick={() => router.push('/login')}
               >
                 Sign in to edit

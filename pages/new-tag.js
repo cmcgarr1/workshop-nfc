@@ -151,14 +151,6 @@ export default function NewTagPage() {
           <IconArrowLeft /> Back
         </div>
 
-        <div className="flash new">
-          <div className="flash-icon"><IconNfc /></div>
-          <div>
-            <p>New tag URL ready</p>
-            <span>Write it to a blank NFC tag</span>
-          </div>
-        </div>
-
         <div className="card" style={{ textAlign: 'center' }}>
           <div className="form-group" style={{ textAlign: 'left' }}>
             <label className="form-label">What is this?</label>

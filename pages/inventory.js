@@ -192,7 +192,12 @@ export default function InventoryPage() {
             ) : (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, padding: '4px 0' }}>
                 {shownContents.map(row => (
-                  <span key={row.id} className="chip purple">
+                  <span
+                    key={row.id}
+                    className="chip purple"
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => router.push(`/entry?id=${row.id}`)}
+                  >
                     {row.item_name || row.categories?.[0]}
                     {row.item_name && row.categories?.length ? ` · ${row.categories.join(', ')}` : ''}
                   </span>

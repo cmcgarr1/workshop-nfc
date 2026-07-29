@@ -514,39 +514,6 @@ export default function ScanPage() {
                           </tr>
                         </thead>
                         <tbody>
-                          {draftRow && (
-                            <tr style={{ borderBottom: '0.5px solid var(--border)' }}>
-                              <td style={{ padding: '4px 6px' }}>
-                                <input
-                                  autoFocus
-                                  placeholder="Item name…"
-                                  value={draftRow.item_name}
-                                  onChange={e => setDraftRow(d => ({ ...d, item_name: e.target.value }))}
-                                  onKeyDown={e => { if (e.key === 'Enter') commitDraftRow(true) }}
-                                  style={{ fontSize: 12, padding: '4px 6px' }}
-                                />
-                              </td>
-                              <td style={{ padding: '4px 6px' }}>
-                                <CategoryTagInput
-                                  value={draftRow.categories}
-                                  onChange={v => setDraftRow(d => ({ ...d, categories: v }))}
-                                  suggestions={categorySuggestions}
-                                />
-                              </td>
-                              {loggedIn && (
-                                <td style={{ padding: '4px 6px', whiteSpace: 'nowrap' }}>
-                                  <button className="btn-ghost" style={{ padding: '3px 7px' }} onClick={() => commitDraftRow(false)} disabled={savingDraft} aria-label="Save item">
-                                    <IconCheck />
-                                  </button>
-                                  <button className="btn-ghost" style={{ padding: '3px 7px' }} onClick={() => setDraftRow(null)} aria-label="Discard">
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                      <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                                    </svg>
-                                  </button>
-                                </td>
-                              )}
-                            </tr>
-                          )}
                           {children.map(c => (
                             <tr
                               key={c.id}
@@ -588,6 +555,41 @@ export default function ScanPage() {
                               </tr>
                             )
                           })}
+                          {draftRow && (
+                            <tr style={{ borderBottom: '0.5px solid var(--border)' }}>
+                              <td style={{ padding: '4px 6px' }}>
+                                <input
+                                  autoFocus
+                                  placeholder="Item name…"
+                                  value={draftRow.item_name}
+                                  onChange={e => setDraftRow(d => ({ ...d, item_name: e.target.value }))}
+                                  onKeyDown={e => { if (e.key === 'Enter') commitDraftRow(true) }}
+                                  style={{ fontSize: 12, padding: '4px 6px' }}
+                                />
+                              </td>
+                              <td style={{ padding: '4px 6px' }}>
+                                <CategoryTagInput
+                                  value={draftRow.categories}
+                                  onChange={v => setDraftRow(d => ({ ...d, categories: v }))}
+                                  suggestions={categorySuggestions}
+                                />
+                              </td>
+                              {loggedIn && (
+                                <td style={{ padding: '4px 6px', whiteSpace: 'nowrap' }}>
+                                  <button className="btn-ghost" style={{ padding: '3px 7px' }} onClick={() => commitDraftRow(false)} disabled={savingDraft} aria-label="Save item">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                      <polyline points="20 6 9 17 4 12"/>
+                                    </svg>
+                                  </button>
+                                  <button className="btn-ghost" style={{ padding: '3px 7px' }} onClick={() => setDraftRow(null)} aria-label="Discard">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                      <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                                    </svg>
+                                  </button>
+                                </td>
+                              )}
+                            </tr>
+                          )}
                         </tbody>
                       </table>
                     </div>
@@ -596,7 +598,7 @@ export default function ScanPage() {
                     <button
                       className="action-btn"
                       style={{ flexDirection: 'row', gap: 6, width: '100%', marginTop: 10 }}
-                      onClick={() => setDraftRow(d => d || { item_name: '', categories: [] })}
+                      onClick={() => { if (draftRow) commitDraftRow(true); else setDraftRow({ item_name: '', categories: [] }) }}
                     >
                       <IconPlus /> Add item
                     </button>

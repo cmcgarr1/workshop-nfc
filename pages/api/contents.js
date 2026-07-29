@@ -77,7 +77,7 @@ export default async function handler(req, res) {
       return res.json({ categories: (data || []).map(c => c.name) })
     }
 
-    let q = supabase.from('contents').select('*').eq('user_id', userId).order('date_added', { ascending: false })
+    let q = supabase.from('contents').select('*').eq('user_id', userId).order('date_added', { ascending: true })
     if (parent_item_id) q = q.eq('parent_item_id', parent_item_id)
 
     const { data, error } = await q
