@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/router'
 import Head from 'next/head'
-import { IconPackage, IconLayers, IconArrowRight, IconPlus, IconTool } from '../lib/icons'
+import { IconPackage, IconLayers, IconArrowRight, IconPlus, IconTool, IconNfc } from '../lib/icons'
 import { apiFetch } from '../lib/apiFetch'
 import { useAuth } from './_app'
 
@@ -14,6 +14,52 @@ export default function InventoryPage() {
   const [search, setSearch] = useState('')
 
   const [allContents, setAllContents] = useState([])
+
+  // True when this page is opened inside the Workshop NFC companion app's
+  // WebView (rather than a normal mobile browser) — the fab only offers a
+  // Scan option there, since NFC reading needs the native app.
+  const [inApp, setInApp] = useState(false)
+  const [fabMenuOpen, setFabMenuOpen] = useState(false)
+  const [scanning, setScanning] = useState(false)
+
+  useEffect(() => {
+    setInApp(typeof window !== 'undefined' && !!window.ReactNativeWebView)
+  }, [])
+
+  // The app calls window.onNfcScanResult(...) via injectJavaScript once a
+  // native NFC read finishes, mirroring window.onNfcWriteResult on new-tag.js.
+  useEffect(() => {
+    if (!inApp) return
+    window.onNfcScanResult = (result) => {
+      setScanning(false)
+      if (result?.ok) {
+        const path = result.url.replace(/^https?:\/\/[^/]+/, '')
+        router.push(path)
+      } else {
+        alert(result?.error || 'Could not read the tag. Try again.')
+      }
+    }
+    return () => { delete window.onNfcScanResult }
+  }, [inApp, router])
+
+  function pressFab() {
+    if (!inApp) {
+      router.push('/new-tag')
+      return
+    }
+    setFabMenuOpen(open => !open)
+  }
+
+  function pressFabAdd() {
+    setFabMenuOpen(false)
+    router.push('/new-tag')
+  }
+
+  function pressFabScan() {
+    setFabMenuOpen(false)
+    setScanning(true)
+    window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'SCAN_NFC' }))
+  }
 
   useEffect(() => {
     apiFetch('/api/items')
@@ -300,9 +346,29 @@ export default function InventoryPage() {
           </>
         )}
 
+        {loggedIn && fabMenuOpen && (
+          <div className="fab-backdrop" onClick={() => setFabMenuOpen(false)} />
+        )}
+
+        {loggedIn && fabMenuOpen && (
+          <>
+            <button className="fab-action" style={{ bottom: 166 }} onClick={pressFabAdd}>
+              <IconPlus /> Add
+            </button>
+            <button className="fab-action" style={{ bottom: 106 }} onClick={pressFabScan}>
+              <IconNfc /> Scan
+            </button>
+          </>
+        )}
+
         {loggedIn && (
-          <button className="fab" onClick={() => router.push('/new-tag')} aria-label="Generate new tag">
-            <IconPlus />
+          <button
+            className="fab"
+            onClick={pressFab}
+            disabled={scanning}
+            aria-label={inApp ? 'Add or scan' : 'Generate new tag'}
+          >
+            {scanning ? <span className="spinner" style={{ width: 20, height: 20 }} /> : <IconPlus />}
           </button>
         )}
       </div>

@@ -175,8 +175,13 @@ button:active { transform: scale(0.98); }
 .filter-btn { padding: 6px 14px; border-radius: 20px; font-size: 13px; border: 0.5px solid var(--border); background: transparent; color: var(--text2); cursor: pointer; }
 .filter-btn.active { background: var(--purple-bg); border-color: var(--purple-border); color: var(--purple-text); font-weight: 500; }
 
-.fab { position: fixed; bottom: 24px; right: 20px; width: 52px; height: 52px; border-radius: 50%; background: var(--text); color: var(--bg); border: none; display: flex; align-items: center; justify-content: center; box-shadow: none; cursor: pointer; }
+.fab { position: fixed; bottom: 24px; right: 20px; width: 52px; height: 52px; border-radius: 50%; background: var(--text); color: var(--bg); border: none; display: flex; align-items: center; justify-content: center; box-shadow: none; cursor: pointer; z-index: 100; }
 .fab svg { width: 24px; height: 24px; }
+.fab:disabled { opacity: 0.6; cursor: default; }
+
+.fab-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.15); z-index: 98; }
+.fab-action { position: fixed; right: 20px; z-index: 99; display: flex; align-items: center; gap: 6px; height: 40px; padding: 0 16px; border-radius: 20px; background: var(--text); color: var(--bg); border: none; font-size: 13px; font-weight: 500; cursor: pointer; }
+.fab-action svg { width: 16px; height: 16px; }
 
 /* Scan page: data card + contents side by side on wide screens */
 .scan-grid { display: flex; flex-direction: column; }
