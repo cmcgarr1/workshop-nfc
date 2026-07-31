@@ -233,11 +233,26 @@ export default function ContentsPage() {
   const valueFilterKeys = ['category', 'box_name']
   const pathFilterKey = 'path'
 
+  // Search only considers item name, description, and categories (per spec) —
+  // location/path stay available as separate column filters below, just not
+  // part of the free-text match.
+  function searchFields(r) {
+    return [r.item_name || '', r.description || '', ...(r.categories || [])]
+  }
+
+  // Rank 0 = search term matches the start of one of the searched fields,
+  // rank 1 = it only matches somewhere in the middle. Only meaningful once a
+  // row has already passed the substring filter below.
+  function matchRank(r, term) {
+    return searchFields(r).some(f => f.toLowerCase().startsWith(term)) ? 0 : 1
+  }
+
+  const searchTerm = search.trim().toLowerCase()
+
   const filtered = contents
     .filter(r => {
-      if (!search) return true
-      const haystack = `${r.item_name} ${r.description} ${(r.categories || []).join(' ')} ${r.box_name} ${r.path}`.toLowerCase()
-      return haystack.includes(search.toLowerCase())
+      if (!searchTerm) return true
+      return searchFields(r).join(' ').toLowerCase().includes(searchTerm)
     })
     .filter(r => valueFilterKeys.every(col => {
       if (!filters[col] || filters[col].length === 0) return true
@@ -247,6 +262,13 @@ export default function ContentsPage() {
     .filter(r => !pathFilter.trim() || (r.path || '').toLowerCase().includes(pathFilter.trim().toLowerCase()))
     .slice()
     .sort((a, b) => {
+      // Search relevance ranking takes priority while actively searching;
+      // the column sort (or the A–Z / Recently updated toggle, which drives
+      // the same sortKey/sortDir state) applies within/after that.
+      if (searchTerm) {
+        const rankDiff = matchRank(a, searchTerm) - matchRank(b, searchTerm)
+        if (rankDiff !== 0) return rankDiff
+      }
       const av = sortKey === 'category' ? (a.categories || []).join(', ') : (a[sortKey] || '')
       const bv = sortKey === 'category' ? (b.categories || []).join(', ') : (b[sortKey] || '')
       let cmp
@@ -282,7 +304,7 @@ export default function ContentsPage() {
 
         <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
           <input
-            placeholder="Search item, description, categories, or location…"
+            placeholder="Search item, description, or categories…"
             value={search}
             onChange={e => setSearch(e.target.value)}
             style={{ flex: 1 }}
@@ -296,6 +318,22 @@ export default function ContentsPage() {
               <IconPlus /> Add item
             </button>
           )}
+        </div>
+
+        <div style={{ display: 'flex', gap: 6, marginBottom: 16 }}>
+          <span style={{ fontSize: 12, color: 'var(--text3)', alignSelf: 'center', marginRight: 2 }}>Order:</span>
+          <button
+            className={`filter-btn${sortKey === 'item_name' && sortDir === 'asc' ? ' active' : ''}`}
+            onClick={() => { setSortKey('item_name'); setSortDir('asc') }}
+          >
+            A–Z
+          </button>
+          <button
+            className={`filter-btn${sortKey === 'updated_at' && sortDir === 'desc' ? ' active' : ''}`}
+            onClick={() => { setSortKey('updated_at'); setSortDir('desc') }}
+          >
+            Recently updated
+          </button>
         </div>
 
         {activeFilterCount > 0 && (
