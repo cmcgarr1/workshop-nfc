@@ -109,15 +109,22 @@ export default function InventoryPage() {
   const hasItemChild = id => items.some(i => i.parent_id === id)
   const hasContentChild = id => contents.some(c => c.parent_item_id === id)
 
-  // 1. Recently added — most recently created/updated locations, containers,
-  // and standalone items, so the page reopens to whatever was just touched.
-  const recentlyAdded = items
+  // Scope every section to locations/containers only. `items` also holds a
+  // frozen, unused set of type='item' rows left over from a prior partial
+  // migration (tools are still actually read/written via the separate
+  // `contents` table on the Tools tab) — those rows never change and would
+  // otherwise clutter this page with stale duplicates of real tools.
+  const locationsAndContainers = items.filter(i => i.type === 'location' || i.type === 'container')
+
+  // 1. Recently added — most recently created/updated locations and
+  // containers, so the page reopens to whatever was just touched.
+  const recentlyAdded = locationsAndContainers
     .slice()
     .sort((a, b) => new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at))
     .slice(0, RECENTLY_ADDED_LIMIT)
 
   // 2. Stale nudge — nothing touched in a while, oldest first.
-  const staleItems = items
+  const staleItems = locationsAndContainers
     .filter(i => daysAgo(i.updated_at || i.created_at) >= STALE_DAYS)
     .slice()
     .sort((a, b) => daysAgo(b.updated_at || b.created_at) - daysAgo(a.updated_at || a.created_at))
@@ -131,7 +138,7 @@ export default function InventoryPage() {
 
   // 5. Tagging progress — locations/containers logged in the DB but without
   // a physical NFC tag written for them yet.
-  const taggable = items.filter(i => i.type === 'location' || i.type === 'container')
+  const taggable = locationsAndContainers
   const untagged = taggable.filter(i => !i.tag_written_at)
   const taggedCount = taggable.length - untagged.length
 
