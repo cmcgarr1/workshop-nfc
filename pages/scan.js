@@ -20,7 +20,7 @@ function genId(name) {
 export default function ScanPage() {
   const router = useRouter()
   const { loggedIn } = useAuth()
-  const { id, prefill_name } = router.query
+  const { id, prefill_name, tag_written } = router.query
 
   const [status, setStatus] = useState('loading')
   const [item, setItem] = useState(null)
@@ -100,7 +100,13 @@ export default function ScanPage() {
     const r = await apiFetch('/api/items', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...form, parent_id: form.parent_id || null })
+      body: JSON.stringify({
+        ...form,
+        parent_id: form.parent_id || null,
+        // Set only when we arrived here right after a real NFC write / QR
+        // confirmation on /new-tag — see the tag_written query param there.
+        tag_written_at: tag_written ? new Date().toISOString() : null
+      })
     })
     const data = await r.json()
     setSaving(false)

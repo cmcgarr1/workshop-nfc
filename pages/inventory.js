@@ -1,19 +1,42 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/router'
 import Head from 'next/head'
-import { IconPackage, IconLayers, IconArrowRight, IconPlus, IconTool, IconNfc } from '../lib/icons'
+import { IconPackage, IconLayers, IconArrowRight, IconPlus, IconNfc } from '../lib/icons'
 import { apiFetch } from '../lib/apiFetch'
 import { useAuth } from './_app'
+
+// A location/container that hasn't been touched in this many days gets
+// surfaced in the "stale" nudge. Easy to tune later, not meant to be exact.
+const STALE_DAYS = 60
+
+// How many entries to show in the two recency-ranked feeds before trailing
+// off — the other sections are checklists meant to be shown in full.
+const RECENTLY_ADDED_LIMIT = 4
+const STALE_LIMIT = 8
+
+function daysAgo(iso) {
+  if (!iso) return Infinity
+  return (Date.now() - new Date(iso).getTime()) / 86400000
+}
+
+function fmtRelative(iso) {
+  const days = Math.floor(daysAgo(iso))
+  if (days <= 0) return 'today'
+  if (days === 1) return '1 day ago'
+  if (days < 30) return `${days} days ago`
+  const months = Math.floor(days / 30)
+  if (months < 12) return `${months} month${months !== 1 ? 's' : ''} ago`
+  const years = Math.floor(months / 12)
+  return `${years} year${years !== 1 ? 's' : ''} ago`
+}
 
 export default function InventoryPage() {
   const router = useRouter()
   const { loggedIn } = useAuth()
   const [items, setItems] = useState([])
-  const [filter, setFilter] = useState('all')
+  const [contents, setContents] = useState([])
   const [loading, setLoading] = useState(true)
-  const [search, setSearch] = useState('')
-
-  const [allContents, setAllContents] = useState([])
+  const [markingId, setMarkingId] = useState(null)
 
   // True when this page is opened inside the Workshop NFC companion app's
   // WebView (rather than a normal mobile browser) — the fab only offers a
@@ -67,207 +90,93 @@ export default function InventoryPage() {
       .then(d => { setItems(d.items || []); setLoading(false) })
     apiFetch('/api/contents')
       .then(r => r.json())
-      .then(d => setAllContents(d.contents || []))
+      .then(d => setContents(d.contents || []))
   }, [])
 
-  const filtered = items.filter(i => {
-    const matchFilter = filter === 'all' || i.type === filter
-    const matchSearch = !search || i.name.toLowerCase().includes(search.toLowerCase()) || i.notes?.toLowerCase().includes(search.toLowerCase())
-    return matchFilter && matchSearch
-  })
-
-  const [expanded, setExpanded] = useState(new Set())
-  const [contentsCache, setContentsCache] = useState({})
-  const [contentsLoading, setContentsLoading] = useState({})
-
-  function collectIds(node) {
-    let ids = [node.id]
-    node.children.forEach(c => { ids = ids.concat(collectIds(c)) })
-    return ids
-  }
-
-  function toggleExpand(node) {
-    const id = node.id
-    setExpanded(prev => {
-      const next = new Set(prev)
-      if (next.has(id)) {
-        next.delete(id)
-      } else {
-        next.add(id)
-        // Fetch contents for this node AND every descendant, since an open
-        // node shows its own items plus anything from closed descendants
-        // (a descendant that's separately opened shows its own items itself,
-        // so it's excluded from the parent's list to avoid double-display).
-        const idsNeeded = collectIds(node)
-        idsNeeded.forEach(needId => {
-          if (!contentsCache[needId] && !contentsLoading[needId]) {
-            setContentsLoading(l => ({ ...l, [needId]: true }))
-            apiFetch(`/api/contents?parent_item_id=${encodeURIComponent(needId)}`)
-              .then(r => r.json())
-              .then(d => {
-                setContentsCache(c => ({ ...c, [needId]: d.contents || [] }))
-                setContentsLoading(l => ({ ...l, [needId]: false }))
-              })
-              .catch(() => setContentsLoading(l => ({ ...l, [needId]: false })))
-          }
-        })
-      }
-      return next
+  async function markTagged(id) {
+    setMarkingId(id)
+    const r = await apiFetch(`/api/items?id=${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tag_written_at: new Date().toISOString() })
     })
+    setMarkingId(null)
+    if (!r.ok) return
+    const { item } = await r.json()
+    setItems(list => list.map(i => (i.id === item.id ? item : i)))
   }
 
-  // Top-level locations start expanded so their contents are visible
-  // immediately, without needing to click the eye icon first. Only runs
-  // once per page load — collapsing one afterward stays collapsed.
-  const [rootsAutoExpanded, setRootsAutoExpanded] = useState(false)
-  useEffect(() => {
-    if (loading || rootsAutoExpanded || items.length === 0) return
-    buildTree().forEach(node => toggleExpand(node))
-    setRootsAutoExpanded(true)
-  }, [loading, items])
+  const hasItemChild = id => items.some(i => i.parent_id === id)
+  const hasContentChild = id => contents.some(c => c.parent_item_id === id)
 
-  function getParentName(parentId) {
-    if (!parentId) return 'Unassigned'
-    return items.find(i => i.id === parentId)?.name || parentId
+  // 1. Recently added — most recently created/updated locations, containers,
+  // and standalone items, so the page reopens to whatever was just touched.
+  const recentlyAdded = items
+    .slice()
+    .sort((a, b) => new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at))
+    .slice(0, RECENTLY_ADDED_LIMIT)
+
+  // 2. Stale nudge — nothing touched in a while, oldest first.
+  const staleItems = items
+    .filter(i => daysAgo(i.updated_at || i.created_at) >= STALE_DAYS)
+    .slice()
+    .sort((a, b) => daysAgo(b.updated_at || b.created_at) - daysAgo(a.updated_at || a.created_at))
+    .slice(0, STALE_LIMIT)
+
+  // 3. Unassigned containers — boxes with no home location yet.
+  const unassignedContainers = items.filter(i => i.type === 'container' && !i.parent_id)
+
+  // 4. Empty locations — nothing (no sub-items, no logged tools) assigned.
+  const emptyLocations = items.filter(i => i.type === 'location' && !hasItemChild(i.id) && !hasContentChild(i.id))
+
+  // 5. Tagging progress — locations/containers logged in the DB but without
+  // a physical NFC tag written for them yet.
+  const taggable = items.filter(i => i.type === 'location' || i.type === 'container')
+  const untagged = taggable.filter(i => !i.tag_written_at)
+  const taggedCount = taggable.length - untagged.length
+
+  function typeIcon(type) {
+    return type === 'location' ? <IconLayers /> : <IconPackage />
   }
 
-  function getChildCount(id) {
-    return items.filter(i => i.parent_id === id).length
-  }
-
-  // "Items" here means entries in the contents table (actual logged tools),
-  // as distinct from sub-locations (child rows in the items table).
-  function getDirectItemCount(id) {
-    return allContents.filter(c => c.parent_item_id === id).length
-  }
-
-  function getAggregatedItemCount(node) {
-    let count = getDirectItemCount(node.id)
-    node.children.forEach(child => { count += getAggregatedItemCount(child) })
-    return count
-  }
-
-  // Builds a nested tree: top-level items (no parent) first, each with its
-  // children attached recursively. Siblings are sorted by "rarity" — the
-  // total count of locations/containers nested inside them, recursively,
-  // not just direct children — so the most built-out parts of the shop
-  // surface first; ties fall back to alphabetical.
-  function buildTree() {
-    const byParent = {}
-    items.forEach(i => {
-      const key = i.parent_id || '__root__'
-      if (!byParent[key]) byParent[key] = []
-      byParent[key].push(i)
-    })
-
-    const nestedCountCache = {}
-    function countNested(id) {
-      if (nestedCountCache[id] !== undefined) return nestedCountCache[id]
-      const kids = byParent[id] || []
-      const total = kids.reduce((sum, k) => sum + 1 + countNested(k.id), 0)
-      nestedCountCache[id] = total
-      return total
-    }
-
-    Object.values(byParent).forEach(list =>
-      list.sort((a, b) => countNested(b.id) - countNested(a.id) || a.name.localeCompare(b.name))
-    )
-
-    function attach(item) {
-      return { ...item, children: (byParent[item.id] || []).map(attach) }
-    }
-    return (byParent['__root__'] || []).map(attach)
-  }
-
-  // Gathers the contents to show under an open node: its own logged items,
-  // plus anything from closed descendants (recursively) — but stops
-  // descending into any descendant that's separately open, since that
-  // descendant displays its own items in its own dropdown instead.
-  function aggregatedContents(node) {
-    let list = contentsCache[node.id] || []
-    node.children.forEach(child => {
-      if (!expanded.has(child.id)) {
-        list = list.concat(aggregatedContents(child))
-      }
-    })
-    return list
-  }
-
-  function isStillLoading(node) {
-    if (contentsLoading[node.id]) return true
-    return node.children.some(c => !expanded.has(c.id) && isStillLoading(c))
-  }
-
-  function TreeRow({ node, depth }) {
-    const subLocationCount = node.children.length
-    const itemCount = getAggregatedItemCount(node)
-    const isOpen = expanded.has(node.id)
-    const nodeContents = isOpen ? aggregatedContents(node) : []
-    const isLoadingContents = isOpen && isStillLoading(node)
-
-    const subParts = []
-    if (subLocationCount > 0) subParts.push(`${subLocationCount} sub-location${subLocationCount !== 1 ? 's' : ''}`)
-    subParts.push(`${itemCount} item${itemCount !== 1 ? 's' : ''}`)
-
-    const shownContents = nodeContents.slice(0, 3)
-    const hiddenCount = nodeContents.length - shownContents.length
-
+  function Section({ title, hint, count, children, empty }) {
     return (
-      <>
-        <div
-          className="inv-item"
-          style={{ marginLeft: depth * 18, cursor: 'pointer' }}
-          onClick={() => (isOpen ? router.push(`/scan?id=${node.id}`) : toggleExpand(node))}
-        >
-          <div>
-            <div className="inv-item-name">{node.name}</div>
-            <div className="inv-item-sub">
-              {subParts.join(' · ')}
-              {node.notes ? ` · ${node.notes}` : ''}
-            </div>
-          </div>
-          <div className="inv-item-arrow" style={{ marginLeft: 'auto' }}><IconArrowRight /></div>
+      <div style={{ marginBottom: 28 }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 4 }}>
+          <div className="section-label">{title}</div>
+          {count != null && <div style={{ fontSize: 12, color: 'var(--text3)' }}>{count}</div>}
         </div>
-
-        {isOpen && (
-          <div style={{ marginLeft: depth * 18 + 18, marginBottom: 8 }}>
-            {isLoadingContents ? (
-              <div style={{ fontSize: 12, color: 'var(--text2)', padding: '4px 0' }}>Loading…</div>
-            ) : nodeContents.length === 0 ? (
-              <div style={{ fontSize: 12, color: 'var(--text3)', padding: '4px 0' }}>Nothing logged here yet</div>
-            ) : (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, padding: '4px 0' }}>
-                {shownContents.map(row => (
-                  <span
-                    key={row.id}
-                    className="chip purple"
-                    style={{ cursor: 'pointer' }}
-                    onClick={() => router.push(`/entry?id=${row.id}`)}
-                  >
-                    {row.item_name || row.categories?.[0]}
-                    {row.item_name && row.categories?.length ? ` · ${row.categories.join(', ')}` : ''}
-                  </span>
-                ))}
-                {hiddenCount > 0 && (
-                  <span className="chip" style={{ color: 'var(--text2)' }}>+{hiddenCount} more</span>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-
-        {isOpen && node.children.map(child => <TreeRow key={child.id} node={child} depth={depth + 1} />)}
-      </>
+        {hint && <div style={{ fontSize: 12, color: 'var(--text3)', marginBottom: 10 }}>{hint}</div>}
+        {empty ? (
+          <div style={{ fontSize: 13, color: 'var(--text3)', padding: '10px 0' }}>{empty}</div>
+        ) : children}
+      </div>
     )
   }
 
-  const tree = buildTree()
-  const isSearching = search.trim().length > 0
+  function Row({ item, subtitle, action }) {
+    return (
+      <div className="inv-item" onClick={() => router.push(`/scan?id=${item.id}`)}>
+        <div className={`inv-item-icon ${item.type === 'location' ? 'loc' : 'con'}`}>
+          {typeIcon(item.type)}
+        </div>
+        <div>
+          <div className="inv-item-name">{item.name}</div>
+          <div className="inv-item-sub">{subtitle}</div>
+        </div>
+        {action ? (
+          <div style={{ marginLeft: 'auto' }} onClick={e => e.stopPropagation()}>{action}</div>
+        ) : (
+          <div className="inv-item-arrow"><IconArrowRight /></div>
+        )}
+      </div>
+    )
+  }
 
   return (
     <>
       <Head>
-        <title>Shop hierarchy · Workshop NFC</title>
+        <title>Audit · Workshop NFC</title>
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
       </Head>
 
@@ -275,7 +184,7 @@ export default function InventoryPage() {
 
         <div className="filter-row">
           <button className="filter-btn active" style={{ flex: 1, textAlign: 'center' }}>
-            Shop hierarchy
+            Audit
           </button>
           <button className="filter-btn" style={{ flex: 1, textAlign: 'center' }} onClick={() => router.push('/contents')}>
             Tools
@@ -286,63 +195,72 @@ export default function InventoryPage() {
           <div className="loading"><div className="spinner" />Loading…</div>
         ) : (
           <>
-            <input
-              placeholder="Search to filter, or browse the hierarchy below…"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              style={{ marginBottom: 12 }}
-            />
+            <Section title="Recently added" hint="What you were just working on">
+              {recentlyAdded.length === 0 ? (
+                <div style={{ fontSize: 13, color: 'var(--text3)', padding: '10px 0' }}>Nothing logged yet</div>
+              ) : recentlyAdded.map(item => (
+                <Row key={item.id} item={item} subtitle={fmtRelative(item.updated_at || item.created_at)} />
+              ))}
+            </Section>
 
-            {isSearching && (
-              <div className="filter-row">
-                {['all', 'location', 'container'].map(f => (
-                  <button key={f} className={`filter-btn${filter === f ? ' active' : ''}`} onClick={() => setFilter(f)}>
-                    {f === 'all' ? 'All' : f === 'location' ? 'Locations' : 'Containers'}
-                  </button>
+            {staleItems.length > 0 && (
+              <Section
+                title="Stale items"
+                hint={`Not touched in ${STALE_DAYS}+ days — review, relocate, or discard`}
+              >
+                {staleItems.map(item => (
+                  <Row key={item.id} item={item} subtitle={`Last touched ${fmtRelative(item.updated_at || item.created_at)}`} />
                 ))}
-              </div>
+              </Section>
             )}
 
-            {isSearching ? (
-              <>
-                {filtered.length === 0 && (
-                  <div style={{ textAlign: 'center', color: 'var(--text3)', padding: '40px 0', fontSize: 14 }}>
-                    No items found
-                  </div>
-                )}
+            <Section
+              title="Unassigned containers"
+              count={unassignedContainers.length}
+              hint="Boxes with no home location yet"
+              empty={unassignedContainers.length === 0 ? 'Every container has a home' : null}
+            >
+              {unassignedContainers.map(item => (
+                <Row key={item.id} item={item} subtitle="No parent location" />
+              ))}
+            </Section>
 
-                {filtered.map(item => {
-                  const subLocationCount = getChildCount(item.id)
-                  const itemCount = getDirectItemCount(item.id)
-                  return (
-                    <div key={item.id} className="inv-item" onClick={() => router.push(`/scan?id=${item.id}`)}>
-                      <div className={`inv-item-icon ${item.type === 'location' ? 'loc' : 'con'}`}>
-                        {item.type === 'location' ? <IconLayers /> : <IconPackage />}
-                      </div>
-                      <div>
-                        <div className="inv-item-name">{item.name}</div>
-                        <div className="inv-item-sub">
-                          {item.type === 'container' ? `In ${getParentName(item.parent_id)} · ` : ''}
-                          {subLocationCount > 0 ? `${subLocationCount} sub-location${subLocationCount !== 1 ? 's' : ''} · ` : ''}
-                          {itemCount} item{itemCount !== 1 ? 's' : ''}
-                          {item.notes ? ` · ${item.notes}` : ''}
-                        </div>
-                      </div>
-                      <div className="inv-item-arrow"><IconArrowRight /></div>
-                    </div>
-                  )
-                })}
-              </>
-            ) : (
-              <>
-                {tree.length === 0 && (
-                  <div style={{ textAlign: 'center', color: 'var(--text3)', padding: '40px 0', fontSize: 14 }}>
-                    No items yet
-                  </div>
-                )}
-                {tree.map(node => <TreeRow key={node.id} node={node} depth={0} />)}
-              </>
+            {emptyLocations.length > 0 && (
+              <Section
+                title="Empty locations"
+                count={emptyLocations.length}
+                hint="Registered but nothing assigned to them yet"
+              >
+                {emptyLocations.map(item => (
+                  <Row key={item.id} item={item} subtitle="Nothing assigned here" />
+                ))}
+              </Section>
             )}
+
+            <Section
+              title="Tagging progress"
+              count={`${taggedCount} / ${taggable.length} tagged`}
+              hint="Logged but not physically tagged yet"
+              empty={untagged.length === 0 ? 'Everything logged has a physical tag' : null}
+            >
+              {untagged.map(item => (
+                <Row
+                  key={item.id}
+                  item={item}
+                  subtitle="Not yet tagged"
+                  action={loggedIn && (
+                    <button
+                      className="btn-ghost"
+                      style={{ padding: '4px 10px', fontSize: 12, whiteSpace: 'nowrap' }}
+                      disabled={markingId === item.id}
+                      onClick={() => markTagged(item.id)}
+                    >
+                      {markingId === item.id ? 'Saving…' : 'Mark tagged'}
+                    </button>
+                  )}
+                />
+              ))}
+            </Section>
           </>
         )}
 

@@ -39,7 +39,7 @@ export default async function handler(req, res) {
   if (!canWrite) return res.status(403).json({ error: 'Sign in to make changes' })
 
   if (method === 'POST') {
-    const { id, name, type, parent_id, notes } = body
+    const { id, name, type, parent_id, notes, tag_written_at } = body
     if (!id || !name || !type) return res.status(400).json({ error: 'id, name, type required' })
 
     if (parent_id) {
@@ -54,7 +54,7 @@ export default async function handler(req, res) {
 
     const { data, error } = await supabase
       .from('items')
-      .insert([{ id, name, type, parent_id: parent_id || null, notes: notes || '', user_id: userId }])
+      .insert([{ id, name, type, parent_id: parent_id || null, notes: notes || '', user_id: userId, tag_written_at: tag_written_at || null }])
       .select()
       .single()
     if (error) return res.status(400).json({ error: error.message })
@@ -63,7 +63,7 @@ export default async function handler(req, res) {
 
   if (method === 'PATCH') {
     const { id } = query
-    const { name, type, parent_id, notes } = body
+    const { name, type, parent_id, notes, tag_written_at } = body
 
     if (parent_id) {
       const { data: parent } = await supabase
@@ -75,9 +75,18 @@ export default async function handler(req, res) {
       if (!parent) return res.status(400).json({ error: 'Invalid parent location' })
     }
 
+    // parent_id and tag_written_at are only touched when explicitly present
+    // in the body — this route also serves lightweight single-field patches
+    // (e.g. the audit checklist's "mark as tagged" action), which must not
+    // blow away an unrelated field like parent_id by coercing a missing key
+    // to null.
+    const updatePayload = { name, type, notes }
+    if (parent_id !== undefined) updatePayload.parent_id = parent_id || null
+    if (tag_written_at !== undefined) updatePayload.tag_written_at = tag_written_at || null
+
     const { data, error } = await supabase
       .from('items')
-      .update({ name, type, parent_id: parent_id || null, notes })
+      .update(updatePayload)
       .eq('id', id)
       .eq('user_id', userId)
       .select()

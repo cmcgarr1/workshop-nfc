@@ -83,7 +83,7 @@ export default function NewTagPage() {
     if (!inApp) return
     window.onNfcWriteResult = (result) => {
       if (result?.ok) {
-        router.push(`/scan?id=${id}&prefill_name=${encodeURIComponent(name)}`)
+        router.push(`/scan?id=${id}&prefill_name=${encodeURIComponent(name)}&tag_written=1`)
       } else {
         setNfcStatus('error')
         setNfcError(result?.error || 'Could not write the tag. Try again.')
@@ -217,7 +217,7 @@ export default function NewTagPage() {
               <button
                 className="btn-primary save-btn"
                 disabled={!id || isDuplicate}
-                onClick={() => router.push(`/scan?id=${id}&prefill_name=${encodeURIComponent(name)}`)}
+                onClick={() => router.push(`/scan?id=${id}&prefill_name=${encodeURIComponent(name)}&tag_written=1`)}
               >
                 <IconArrowRight /> I wrote it — scan now
               </button>
