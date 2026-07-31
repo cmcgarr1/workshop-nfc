@@ -457,7 +457,7 @@ export default function ScanPage() {
                             style={{ marginLeft: 'auto', width: '60%' }}
                             value={editForm.parent_id}
                             onChange={v => setEditForm(f => ({ ...f, parent_id: v }))}
-                            options={allItems.filter(i => i.id !== item.id).map(i => ({ value: i.id, label: i.name, sub: i.type }))}
+                            options={allItems.filter(i => i.id !== item.id && i.type !== 'item').map(i => ({ value: i.id, label: i.name, sub: i.type }))}
                           />
                         ) : (
                           <span className="meta-value">

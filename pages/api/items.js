@@ -17,11 +17,16 @@ export default async function handler(req, res) {
         .eq('user_id', userId)
         .single()
       if (error) return res.status(404).json({ error: 'Not found' })
+      // Excludes type='item' rows — those are tools, already surfaced
+      // separately via /api/contents on the scan page's side panel; without
+      // this filter they'd show up twice (once here mislabeled "Container",
+      // once correctly under Contents).
       const { data: children } = await supabase
         .from('items')
         .select('*')
         .eq('parent_id', id)
         .eq('user_id', userId)
+        .neq('type', 'item')
       const { data: allUserItems } = await supabase.from('items').select('id, name, parent_id').eq('user_id', userId)
       const itemsById = buildItemsById(allUserItems)
       return res.json({ item: data, children: children || [], canWrite, path: pathString(id, itemsById) })
@@ -112,7 +117,10 @@ export default async function handler(req, res) {
         idsToDelete.push(...kidIds)
         frontier = kidIds
       }
-      await supabase.from('contents').delete().in('parent_item_id', idsToDelete).eq('user_id', userId)
+      // Tools are just items(type='item') now, so the parent_id walk above
+      // already collected them into idsToDelete along with any sub-locations/
+      // containers — one delete covers everything, no separate contents
+      // cleanup needed (that table is retired).
       const { error } = await supabase.from('items').delete().in('id', idsToDelete).eq('user_id', userId)
       if (error) return res.status(400).json({ error: error.message })
       return res.json({ ok: true, deletedCount: idsToDelete.length })

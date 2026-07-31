@@ -571,7 +571,7 @@ export default function ContentsPage() {
                 value={form.parent_item_id}
                 onChange={v => setForm(f => ({ ...f, parent_item_id: v }))}
                 emptyLabel="— unassigned —"
-                options={allItems.map(i => ({ value: i.id, label: i.name, sub: i.type }))}
+                options={allItems.filter(i => i.type === 'location' || i.type === 'container').map(i => ({ value: i.id, label: i.name, sub: i.type }))}
               />
             </div>
 

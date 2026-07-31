@@ -129,7 +129,7 @@ export default function EntryPage() {
               <SearchableSelect
                 value={form.parent_item_id}
                 onChange={v => setForm(f => ({ ...f, parent_item_id: v }))}
-                options={allItems.map(i => ({ value: i.id, label: i.name, sub: i.type }))}
+                options={allItems.filter(i => i.type === 'location' || i.type === 'container').map(i => ({ value: i.id, label: i.name, sub: i.type }))}
               />
             </div>
             <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>

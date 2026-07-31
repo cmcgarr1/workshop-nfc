@@ -1,25 +1,45 @@
+import { randomUUID } from 'crypto'
 import { supabase, getRequestContext } from '../../lib/supabaseServer'
 import { buildItemsById, pathString, contentPathString } from '../../lib/itemPath'
 
-// Categories are many-to-many (see supabase-schema-categories.sql):
-// `categories` holds one row per distinct name per user, and
-// `content_categories` links a contents row to zero or more of them.
-// The old single-value `contents.category` column is left untouched
-// but no longer read from or written to.
+// Tools live as `items` rows with type='item' (see the 2026-07-28 unification
+// migration — Phase 1 copied the old `contents` rows over, Phase 2/3 here
+// repoints this route's read/write paths to the new home). Categories go
+// through the shared `item_categories` junction table, same shape as
+// `content_categories` did. The `contents`/`content_categories` tables are
+// left untouched as a rollback safety net (see items_backup_20260730 /
+// contents_backup_20260730) — nothing dropped yet.
+//
+// The request/response shape here is unchanged on purpose — `item_name`,
+// `parent_item_id`, `date_added`, etc. — so pages/contents.js, pages/scan.js,
+// and pages/entry.js didn't need to change at all.
 
-async function fetchCategoryMap(userId, contentIds) {
+function reshape(row) {
+  return {
+    id: row.id,
+    item_name: row.name,
+    description: row.description || '',
+    date_acquired: row.date_acquired,
+    date_added: row.created_at,
+    updated_at: row.updated_at,
+    parent_item_id: row.parent_id,
+    user_id: row.user_id
+  }
+}
+
+async function fetchCategoryMap(userId, itemIds) {
   let q = supabase
-    .from('content_categories')
-    .select('content_id, categories(name)')
+    .from('item_categories')
+    .select('item_id, categories(name)')
     .eq('user_id', userId)
-  if (contentIds) q = q.in('content_id', contentIds)
+  if (itemIds) q = q.in('item_id', itemIds)
   const { data } = await q
   const map = {}
   ;(data || []).forEach(row => {
     const name = row.categories?.name
     if (!name) return
-    if (!map[row.content_id]) map[row.content_id] = []
-    map[row.content_id].push(name)
+    if (!map[row.item_id]) map[row.item_id] = []
+    map[row.item_id].push(name)
   })
   return map
 }
@@ -48,12 +68,12 @@ async function findOrCreateCategoryIds(userId, names) {
   return ids
 }
 
-async function replaceContentCategories(userId, contentId, names) {
+async function replaceItemCategories(userId, itemId, names) {
   const cleanNames = (names || []).map(n => (n || '').trim()).filter(Boolean)
-  await supabase.from('content_categories').delete().eq('content_id', contentId).eq('user_id', userId)
+  await supabase.from('item_categories').delete().eq('item_id', itemId).eq('user_id', userId)
   const catIds = await findOrCreateCategoryIds(userId, cleanNames)
   if (catIds.length) {
-    await supabase.from('content_categories').insert(catIds.map(category_id => ({ content_id: contentId, category_id, user_id: userId })))
+    await supabase.from('item_categories').insert(catIds.map(category_id => ({ item_id: itemId, category_id, user_id: userId })))
   }
   return cleanNames
 }
@@ -77,17 +97,18 @@ export default async function handler(req, res) {
       return res.json({ categories: (data || []).map(c => c.name) })
     }
 
-    let q = supabase.from('contents').select('*').eq('user_id', userId).order('date_added', { ascending: true })
-    if (parent_item_id) q = q.eq('parent_item_id', parent_item_id)
+    let q = supabase.from('items').select('*').eq('user_id', userId).eq('type', 'item').order('created_at', { ascending: true })
+    if (parent_item_id) q = q.eq('parent_id', parent_item_id)
 
     const { data, error } = await q
     if (error) return res.status(500).json({ error: error.message })
 
-    const { data: items } = await supabase.from('items').select('id, name, parent_id').eq('user_id', userId)
-    const itemsById = buildItemsById(items)
+    const { data: allItems } = await supabase.from('items').select('id, name, parent_id').eq('user_id', userId)
+    const itemsById = buildItemsById(allItems)
     const categoryMap = await fetchCategoryMap(userId, (data || []).map(r => r.id))
 
-    const enriched = (data || []).map(row => {
+    const enriched = (data || []).map(raw => {
+      const row = reshape(raw)
       const parent = row.parent_item_id ? itemsById[row.parent_item_id] : null
       return {
         ...row,
@@ -122,12 +143,15 @@ export default async function handler(req, res) {
     }
 
     const { data, error } = await supabase
-      .from('contents')
+      .from('items')
       .insert([{
-        parent_item_id: parent_item_id || null,
-        item_name,
+        id: randomUUID(),
+        type: 'item',
+        name: item_name,
+        parent_id: parent_item_id || null,
         description: description || '',
         date_acquired: date_acquired || new Date().toISOString(),
+        notes: '',
         user_id: userId
       }])
       .select()
@@ -137,10 +161,10 @@ export default async function handler(req, res) {
 
     const catIds = await findOrCreateCategoryIds(userId, cleanCategories)
     if (catIds.length) {
-      await supabase.from('content_categories').insert(catIds.map(category_id => ({ content_id: data.id, category_id, user_id: userId })))
+      await supabase.from('item_categories').insert(catIds.map(category_id => ({ item_id: data.id, category_id, user_id: userId })))
     }
 
-    return res.status(201).json({ content: { ...data, categories: cleanCategories } })
+    return res.status(201).json({ content: { ...reshape(data), categories: cleanCategories } })
   }
 
   if (method === 'PATCH') {
@@ -158,32 +182,34 @@ export default async function handler(req, res) {
       if (!parent) return res.status(400).json({ error: 'Invalid location' })
     }
 
+    const updatePayload = {}
+    if (item_name !== undefined) updatePayload.name = item_name
+    if (description !== undefined) updatePayload.description = description
+    if (parent_item_id !== undefined) updatePayload.parent_id = parent_item_id || null
+
     const { data, error } = await supabase
-      .from('contents')
-      .update({
-        item_name,
-        description,
-        parent_item_id: parent_item_id || null
-      })
+      .from('items')
+      .update(updatePayload)
       .eq('id', id)
       .eq('user_id', userId)
+      .eq('type', 'item')
       .select()
       .single()
 
     if (error) return res.status(400).json({ error: error.message })
 
     const finalCategories = categories !== undefined
-      ? await replaceContentCategories(userId, id, categories)
+      ? await replaceItemCategories(userId, id, categories)
       : (await fetchCategoryMap(userId, [id]))[id] || []
 
-    return res.json({ content: { ...data, categories: finalCategories } })
+    return res.json({ content: { ...reshape(data), categories: finalCategories } })
   }
 
   if (method === 'DELETE') {
     const { id } = query
     if (!id) return res.status(400).json({ error: 'id required' })
 
-    const { error } = await supabase.from('contents').delete().eq('id', id).eq('user_id', userId)
+    const { error } = await supabase.from('items').delete().eq('id', id).eq('user_id', userId).eq('type', 'item')
     if (error) return res.status(400).json({ error: error.message })
     return res.json({ ok: true })
   }
