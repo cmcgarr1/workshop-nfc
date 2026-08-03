@@ -6,9 +6,9 @@ import { buildItemsById, pathString, contentPathString } from '../../lib/itemPat
 // migration — Phase 1 copied the old `contents` rows over, Phase 2/3 here
 // repoints this route's read/write paths to the new home). Categories go
 // through the shared `item_categories` junction table, same shape as
-// `content_categories` did. The `contents`/`content_categories` tables are
-// left untouched as a rollback safety net (see items_backup_20260730 /
-// contents_backup_20260730) — nothing dropped yet.
+// `content_categories` did. The `contents`/`content_categories` tables have
+// since been dropped; only the point-in-time snapshots items_backup_20260730
+// and contents_backup_20260730 remain, and nothing reads them.
 //
 // The request/response shape here is unchanged on purpose — `item_name`,
 // `parent_item_id`, `date_added`, etc. — so pages/contents.js, pages/scan.js,
