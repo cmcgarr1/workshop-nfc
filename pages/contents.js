@@ -297,9 +297,6 @@ export default function ContentsPage() {
           <button className="filter-btn" style={{ flex: 1, textAlign: 'center' }} onClick={() => router.push('/inventory')}>
             Explore
           </button>
-          <button className="filter-btn" style={{ flex: 1, textAlign: 'center' }} onClick={() => router.push('/audit')}>
-            Audit
-          </button>
           <button className="filter-btn active" style={{ flex: 1, textAlign: 'center' }}>
             Tools
           </button>

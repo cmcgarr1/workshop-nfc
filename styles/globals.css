@@ -293,3 +293,6 @@ button:active { transform: scale(0.98); }
   .bx, .bx.pop, .bx.chosen { animation: none; opacity: 1; transform: none; }
   .bx:active { transform: none; }
 }
+
+/* Audit feeds, stacked under the explorer grid on /inventory */
+.audit-sections { margin-top: 32px; padding-top: 24px; border-top: 0.5px solid var(--border); }
