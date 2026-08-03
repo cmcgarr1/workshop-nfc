@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { useRouter } from 'next/router'
 import Head from 'next/head'
-import { IconDoor, IconPackage, IconTag, IconLayers, IconArrowRight, IconPlus, IconNfc } from '../lib/icons'
+import { IconDoor, IconPackage, IconTag, IconLayers, IconArrowRight, IconEdit, IconPlus, IconNfc } from '../lib/icons'
 import { apiFetch } from '../lib/apiFetch'
 import { useAuth } from './_app'
 
@@ -389,6 +389,17 @@ export default function InventoryPage() {
               )}
             </span>
           ))}
+          {/* The box you're standing in has no card on screen, so its own
+              edit/detail link lives on the breadcrumb. */}
+          {current && (
+            <button
+              className="crumb-edit"
+              onClick={() => router.push(`/scan?id=${encodeURIComponent(current.id)}`)}
+            >
+              {loggedIn ? <IconEdit /> : <IconArrowRight />}
+              {loggedIn ? 'Edit' : 'Details'}
+            </button>
+          )}
         </nav>
 
         {loading ? (
@@ -404,11 +415,18 @@ export default function InventoryPage() {
             style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
           >
             {boxes.map((box, i) => (
-              <button
+              // A div rather than a button: rooms and containers carry their
+              // own edit button, and a button inside a button is invalid.
+              <div
                 key={box.id}
+                role="button"
+                tabIndex={0}
                 className={boxClass(box.id)}
                 style={{ animationDelay: boxDelay(i) }}
                 onClick={() => openBox(box)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openBox(box) }
+                }}
               >
                 <div className="bx-head">
                   <span className="bx-icon">
@@ -419,9 +437,18 @@ export default function InventoryPage() {
                 {box.type === 'item' ? (
                   <div className="bx-sub">{(categoriesById[box.id] || []).join(', ')}</div>
                 ) : (
-                  <Preview box={box} />
+                  <>
+                    <Preview box={box} />
+                    <button
+                      className="bx-edit"
+                      aria-label={loggedIn ? `Edit ${box.name}` : `Open ${box.name}`}
+                      onClick={e => { e.stopPropagation(); router.push(`/scan?id=${encodeURIComponent(box.id)}`) }}
+                    >
+                      {loggedIn ? <IconEdit /> : <IconArrowRight />}
+                    </button>
+                  </>
                 )}
-              </button>
+              </div>
             ))}
           </div>
         )}
