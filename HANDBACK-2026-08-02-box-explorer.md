@@ -79,11 +79,16 @@ Where it differs from the brief's wording, and why:
    4 rooms and a nested location. It renders as a room-styled box one level in, which looks correct.
 4. **Data:** there is a container with id `test`, name `"Test "` (trailing space), no parent and no children.
    It shows up as a fifth box at the top level. Probably junk from testing — I did not delete it.
-5. **There is no way to delete a box anywhere in the app.** `pages/scan.js` has a complete, working delete
-   flow — `openDeleteItem()` (line 172), a cascade-vs-orphan modal, and a `DELETE /api/items?id=&cascade=`
-   call — but **nothing ever calls `openDeleteItem`**, so none of it is reachable. Wiring one button into the
-   scan page's action row restores it; the API and the modal need no changes. Left alone deliberately: adding
-   a delete button is a decision to make on purpose, not a drive-by fix.
+5. **Boxes couldn't be deleted at all — fixed, and it was hiding a worse bug.** The delete flow had been
+   unreachable since `99ed93d` (2026-06-30), which inlined the scan page's edit view and deleted the block
+   the "Delete item" button lived in. `openDeleteItem()`, the cascade modal and the API all survived because
+   they sit elsewhere in the file; only the `onClick` that reached them was lost. The button is back, below
+   Save/Cancel and only while editing, as before.
+   Restoring it exposed a real data-loss hazard: the modal counted `children`, which is one level deep and
+   **excludes** `type='item'` rows, while the API's cascade walks `parent_id` to the bottom and deletes
+   everything it finds. "Delete this and all 1 sub-item" would have destroyed 3 rows. Both sides now count
+   the same set, walked client-side from the items list already loaded for edit mode. If you touch either
+   side again, keep them in sync.
 6. `/api/items?id=<id>` deliberately excludes `type='item'` children. The explorer doesn't use that path
    (it builds the tree from the unfiltered list endpoint), but anything else reading it sees containers only.
 
