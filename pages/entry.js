@@ -88,11 +88,6 @@ export default function EntryPage() {
       </Head>
 
       <div className="page">
-        <div className="topbar">
-          <div className="topbar-logo"><IconTool /></div>
-          <h1>Workshop</h1>
-        </div>
-
         <div className="back-link" onClick={() => router.back()}>
           <IconArrowLeft /> Back
         </div>
