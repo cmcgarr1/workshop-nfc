@@ -57,12 +57,19 @@ Where it differs from the brief's wording, and why:
 
 ## Discovered along the way (not fixed, worth knowing)
 
-1. **App-wide hang after repeated client-side navigation.** After several navigations within one tab, every
-   page sticks on "Loading…" *and* the top bar disappears — which means `supabase.auth.getSession()` never
-   resolved, since `_app.js` gates the top bar on it and `lib/apiFetch.js` awaits it on every single API call.
-   Reproduced on `/audit` (untouched pre-existing code), so this is **not** from this change, but it is a real
-   bug on a phone-first app: one wedged `getSession()` takes down every page at once. Likely the navigator
-   LockManager contention in `@supabase/supabase-js` 2.43.1. Worth a look before the next feature.
+1. **A "pages hang on Loading…" symptom that turned out not to be an app bug — retracted.** During this work
+   pages repeatedly stuck on "Loading…" with the top bar missing, and I attributed it to
+   `supabase.auth.getSession()` deadlocking on its cross-tab Web Locks lock. That diagnosis was wrong.
+   Controlled testing showed: the `/api/*` requests return 200 while the page still shows "Loading…"; the
+   page completes the moment its tab is fronted; and the pre-change code behaves identically to the changed
+   code. The stall tracks tab activation in the embedded test browser, not anything in the app. Two of my own
+   habits made it look worse — running `npm run build` against a live dev server clobbers `.next` and yields
+   real 500s, and querying a background tab can itself resume it, so "still loading" readings were unreliable.
+   A refactor to hold the token from `onAuthStateChange` instead of calling `getSession()` per request was
+   written and then **reverted**: with no demonstrated bug, its 3s "auth ready" timeout added a genuine
+   regression risk — a slow cold start on mobile would silently send a signed-in user's first requests
+   unauthenticated, dropping them into the read-only view. **If this symptom shows up on real hardware,
+   start by reproducing it on a phone before touching the auth path.**
 2. **The Audit view's item filter is now based on a false premise.** Its comment claimed `type='item'` rows were
    frozen leftovers from a partial migration and that tools "are still actually read/written via the separate
    `contents` table." Post-unification those rows *are* the real tools. I corrected the comment but left the
