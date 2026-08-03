@@ -215,3 +215,81 @@ button:active { transform: scale(0.98); }
 .modal { background: var(--bg); border-radius: 16px 16px 0 0; padding: 20px 16px 32px; width: 100%; max-width: 480px; max-height: 90vh; overflow-y: auto; }
 .modal-handle { width: 36px; height: 4px; background: var(--border2); border-radius: 2px; margin: 0 auto 20px; }
 .modal h2 { font-size: 17px; font-weight: 500; margin-bottom: 16px; }
+
+/* ---- Inventory box explorer ---- */
+
+/* The explorer wants room for 4 columns; every other page stays at 480. */
+.page-wide { max-width: 720px; }
+
+.crumbs { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px; font-size: 13px; margin-bottom: 16px; color: var(--text2); }
+.crumb-group { display: inline-flex; align-items: baseline; gap: 4px; }
+.crumb-sep { color: var(--text3); }
+.crumb.link { cursor: pointer; }
+.crumb.link:hover { color: var(--text); text-decoration: underline; }
+.crumb.current { font-weight: 600; color: var(--text); }
+
+.bx-grid { display: grid; gap: 10px; }
+.bx-nothing { font-size: 13px; color: var(--text3); padding: 24px 0; text-align: center; }
+
+.bx {
+  display: flex; flex-direction: column; gap: 8px;
+  min-height: 110px; padding: 12px; text-align: left;
+  border: 0.5px solid var(--border); border-radius: var(--radius);
+  background: var(--bg2); color: var(--text);
+  overflow: hidden;
+}
+.bx:hover { border-color: var(--border2); }
+.bx-location { background: var(--blue-bg); border-color: transparent; }
+.bx-location .bx-icon svg { color: var(--blue-text); }
+.bx-location .bx-name { color: var(--blue-text); }
+.bx-item { min-height: 70px; }
+
+.bx-head { display: flex; align-items: center; gap: 7px; min-width: 0; }
+.bx-icon { display: flex; flex-shrink: 0; }
+.bx-icon svg { width: 16px; height: 16px; color: var(--text2); }
+.bx-name { font-size: 13px; font-weight: 500; line-height: 1.25; overflow-wrap: anywhere; }
+.bx-sub { font-size: 11px; color: var(--text2); overflow-wrap: anywhere; }
+
+.bx-preview { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.bx-mini {
+  display: flex; align-items: baseline; gap: 4px;
+  padding: 4px 6px; border-radius: 5px; background: var(--bg3);
+  font-size: 11px; line-height: 1.3;
+}
+.bx-mini-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bx-mini-count { color: var(--text3); white-space: nowrap; flex-shrink: 0; }
+.bx-pills { display: flex; flex-wrap: wrap; gap: 4px; }
+.bx-pill {
+  padding: 2px 7px; border-radius: 20px; font-size: 10px; line-height: 1.5;
+  background: var(--purple-bg); color: var(--purple-text);
+  /* Border keeps the pill legible on the tinted room cards, where the purple
+     fill is nearly the same value as the blue background in light mode. */
+  border: 0.5px solid var(--purple-border);
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.bx-empty { font-size: 11px; color: var(--text3); }
+.bx-more { font-size: 10px; color: var(--text3); }
+
+@keyframes riseup {
+  0%   { opacity: 0; transform: translateY(46px) scale(0.96); }
+  70%  { transform: translateY(-6px) scale(1.01); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes popout {
+  0%   { opacity: 1; transform: scale(1); }
+  35%  { transform: scale(1.12); }
+  100% { opacity: 0; transform: scale(0.2); }
+}
+@keyframes chosen {
+  0%   { transform: scale(1); }
+  50%  { transform: scale(1.05); }
+  100% { transform: scale(1); opacity: 0; }
+}
+.bx        { animation: riseup 0.45s cubic-bezier(0.34, 1.4, 0.64, 1) both; }
+.bx.pop    { animation: popout 0.28s ease-in both; }
+.bx.chosen { animation: chosen 0.3s ease-in both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .bx, .bx.pop, .bx.chosen { animation: none; opacity: 1; transform: none; }
+  .bx:active { transform: none; }
+}

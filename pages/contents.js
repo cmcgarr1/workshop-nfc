@@ -295,7 +295,10 @@ export default function ContentsPage() {
       <div className="page" style={{ maxWidth: 900, paddingTop: 64 }}>
         <div className="filter-row">
           <button className="filter-btn" style={{ flex: 1, textAlign: 'center' }} onClick={() => router.push('/inventory')}>
-            Shop hierarchy
+            Explore
+          </button>
+          <button className="filter-btn" style={{ flex: 1, textAlign: 'center' }} onClick={() => router.push('/audit')}>
+            Audit
           </button>
           <button className="filter-btn active" style={{ flex: 1, textAlign: 'center' }}>
             Tools
