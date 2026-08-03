@@ -1,7 +1,10 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { useRouter } from 'next/router'
 import Head from 'next/head'
-import { IconDoor, IconPackage, IconTag, IconLayers, IconArrowRight, IconEdit, IconPlus, IconNfc } from '../lib/icons'
+import {
+  IconDoor, IconPackage, IconTag, IconLayers, IconArrowRight, IconEdit,
+  IconSitemap, IconNote, IconClock, IconPlus, IconNfc
+} from '../lib/icons'
 import { apiFetch } from '../lib/apiFetch'
 import { useAuth } from './_app'
 
@@ -389,17 +392,6 @@ export default function InventoryPage() {
               )}
             </span>
           ))}
-          {/* The box you're standing in has no card on screen, so its own
-              edit/detail link lives on the breadcrumb. */}
-          {current && (
-            <button
-              className="crumb-edit"
-              onClick={() => router.push(`/scan?id=${encodeURIComponent(current.id)}`)}
-            >
-              {loggedIn ? <IconEdit /> : <IconArrowRight />}
-              {loggedIn ? 'Edit' : 'Details'}
-            </button>
-          )}
         </nav>
 
         {loading ? (
@@ -453,7 +445,73 @@ export default function InventoryPage() {
           </div>
         )}
 
-        {!loading && (
+        {/* At the top level the audit feeds are the useful thing to show below
+            the grid. Once you're inside a box they aren't — what you want is
+            that box, so it takes their place. */}
+        {!loading && current && (
+          <div className="level-card card">
+            {current.photo_url && (
+              <a
+                href={current.photo_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="level-card-photo"
+                style={{ background: current.type === 'location' ? 'var(--blue-bg)' : 'var(--purple-bg)' }}
+              >
+                <img src={current.photo_url} alt={current.name} />
+              </a>
+            )}
+
+            <div className="item-head">
+              <div className={`item-icon${current.type === 'location' ? ' loc' : ''}`}>
+                {current.type === 'location' ? <IconDoor /> : <IconPackage />}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div className="item-name">{current.name}</div>
+                <div className="inv-item-sub">{current.type === 'location' ? 'Location' : 'Container'}</div>
+              </div>
+              <button
+                className="btn-ghost"
+                style={{ padding: '6px 12px', fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}
+                onClick={() => router.push(`/scan?id=${encodeURIComponent(current.id)}`)}
+              >
+                {loggedIn ? <IconEdit /> : <IconArrowRight />}
+                {loggedIn ? 'Edit' : 'Details'}
+              </button>
+            </div>
+
+            <div className="meta">
+              <div className="meta-row">
+                <IconSitemap />
+                <span className="meta-label">Location</span>
+                <span className="meta-value">
+                  {current.parent_id && byId[current.parent_id] ? byId[current.parent_id].name : 'Unassigned'}
+                </span>
+              </div>
+              <div className="meta-row">
+                <IconPackage />
+                <span className="meta-label">Contains</span>
+                <span className="meta-value">
+                  {boxes.length === 0 ? 'Nothing yet' : `${boxes.length} ${boxes.length === 1 ? 'thing' : 'things'}`}
+                </span>
+              </div>
+              {current.notes && (
+                <div className="meta-row">
+                  <IconNote />
+                  <span className="meta-label">Notes</span>
+                  <span className="meta-value">{current.notes}</span>
+                </div>
+              )}
+              <div className="meta-row">
+                <IconClock />
+                <span className="meta-label">Added</span>
+                <span className="meta-value">{fmtRelative(current.created_at)}</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {!loading && !current && (
           <div className="audit-sections">
             <Section title="Recently added" hint="What you were just working on">
               {recentlyAdded.length === 0 ? (
