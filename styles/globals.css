@@ -71,6 +71,9 @@ button:active { transform: scale(0.98); }
 .btn-primary { background: var(--text); color: var(--bg); border-color: transparent; font-weight: 500; }
 .btn-ghost { background: transparent; border-color: var(--border2); color: var(--text2); }
 .btn-danger { background: transparent; border-color: #F7C1C1; color: #A32D2D; }
+/* The icons carry no intrinsic size, so any button holding one has to give it
+   dimensions or the svg expands to fill the button. */
+.btn-danger svg { width: 18px; height: 18px; flex-shrink: 0; }
 
 .page { max-width: 480px; margin: 0 auto; padding: 64px 16px 40px; min-height: 100vh; }
 

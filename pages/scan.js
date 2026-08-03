@@ -169,8 +169,31 @@ export default function ScanPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
+  // The cascade delete walks parent_id all the way down, so anything shown to
+  // the person has to count the same set. `children` is one level deep and
+  // excludes tools (see the neq filter in /api/items), so on its own it badly
+  // under-reports what a cascade would actually destroy.
+  function descendantIds(rootId, rows) {
+    const found = []
+    let frontier = [rootId]
+    while (frontier.length) {
+      const kids = rows.filter(r => r.parent_id && frontier.includes(r.parent_id)).map(r => r.id)
+      if (!kids.length) break
+      found.push(...kids)
+      frontier = kids
+    }
+    return found
+  }
+
+  // allItems is loaded on entering edit mode, which is the only way to reach
+  // delete. If it hasn't arrived yet, fall back to the two lists that are
+  // always loaded — still one level deep, but never an undercount of them.
+  const doomed = allItems.length
+    ? descendantIds(id, allItems)
+    : [...children, ...contents].map(r => r.id)
+
   function openDeleteItem() {
-    if (children.length === 0) {
+    if (doomed.length === 0) {
       if (!confirm(`Delete "${item.name}"?`)) return
       runDelete(false)
     } else {
@@ -490,14 +513,28 @@ export default function ScanPage() {
                     </div>
 
                     {view === 'edit' && (
-                      <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
-                        <button className="btn-primary save-btn" style={{ flex: 1 }} onClick={saveEdit} disabled={saving}>
-                          <IconCheck /> {saving ? 'Saving…' : 'Save'}
+                      <>
+                        <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+                          <button className="btn-primary save-btn" style={{ flex: 1 }} onClick={saveEdit} disabled={saving}>
+                            <IconCheck /> {saving ? 'Saving…' : 'Save'}
+                          </button>
+                          <button className="btn-ghost" style={{ padding: '10px 14px' }} onClick={() => setView('main')}>
+                            Cancel
+                          </button>
+                        </div>
+
+                        {/* Reachable only while editing, as it was before the
+                            edit view was inlined — deleting a box shouldn't be
+                            a stray tap away on the page a scan lands you on. */}
+                        <button
+                          className="btn-danger"
+                          style={{ width: '100%', marginTop: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                          onClick={openDeleteItem}
+                          disabled={deleting}
+                        >
+                          <IconTrash /> {deleting ? 'Deleting…' : `Delete ${item.type === 'location' ? 'location' : 'container'}`}
                         </button>
-                        <button className="btn-ghost" style={{ padding: '10px 14px' }} onClick={() => setView('main')}>
-                          Cancel
-                        </button>
-                      </div>
+                      </>
                     )}
                   </div>
                 </div>
@@ -630,8 +667,8 @@ export default function ScanPage() {
             <div className="modal-handle" />
             <h2>Delete "{item.name}"?</h2>
             <p style={{ fontSize: 13, color: 'var(--text2)', marginBottom: 18 }}>
-              This {item.type} has {children.length} sub-item{children.length !== 1 ? 's' : ''} inside it.
-              Choose what should happen to them.
+              This {item.type} has {doomed.length} thing{doomed.length !== 1 ? 's' : ''} inside it,
+              counting everything nested further down. Choose what should happen to them.
             </p>
 
             <button
@@ -640,7 +677,7 @@ export default function ScanPage() {
               onClick={() => runDelete(true)}
               disabled={deleting}
             >
-              <IconTrash /> Delete this and all {children.length} sub-item{children.length !== 1 ? 's' : ''}
+              <IconTrash /> Delete this and all {doomed.length} thing{doomed.length !== 1 ? 's' : ''} inside
             </button>
 
             <button
