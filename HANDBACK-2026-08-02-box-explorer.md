@@ -6,23 +6,23 @@
 | --- | --- | --- |
 | Task 0 — verify the code repoint | Already done | Commit `d9bac8a` had already repointed `/api/contents` to `items` (`type='item'`) + `item_categories`. Nothing in the app reads a dropped table. |
 | Task 1 — box explorer at `/inventory` | Done | Static explorer, animations, URL sync and the mobile breakpoint all shipped together. |
-| Preserve the Audit view | Done, not in the brief | The brief said `/inventory` was a stats + flat list page. It wasn't — it was the Audit view. Moved to `/audit` rather than deleted. See below. |
+| Audit view | Folded into `/inventory` | The brief said `/inventory` was a stats + flat list page. It wasn't — it was the Audit view. Its feeds now sit below the explorer grid; the `/audit` route is deleted. |
+| Edit a box from the explorer | Done, added after the brief | Rooms and containers get a corner button that opens `/scan?id=<id>`. |
 
-## The one real deviation: `/inventory` was not what the brief described
+## `/inventory` was not what the brief described
 
 The brief said to replace a "stats + filter pills + flat list" page. That page no longer existed — `/inventory`
 had been rebuilt as the **Audit view** (stale nudges, unassigned containers, empty locations, tagging progress)
 in commit `adb2d81`, a week before this brief was written.
 
-The brief also says the audit view is out of scope but should not be foreclosed: "a future tab/route can coexist."
-Deleting shipped, working functionality is not reversible from the brief's wording alone, so:
+It was first moved to its own `/audit` route to avoid deleting working functionality, then — on request — the
+route was deleted and its sections were stacked underneath the explorer grid on `/inventory`. The tab row is
+back to **Explore · Tools**. The audit feeds still summarise the whole workshop rather than the level you're
+standing in, so they don't change as you drill.
 
-- `/inventory` is now the box explorer (the brief's clear intent — this is the tab the logo and the scan page land on).
-- The Audit view moved **unchanged** to `/audit`.
-- The tab row on all three pages is now **Explore · Audit · Tools**. The Tools tab's first button used to read
-  "Shop hierarchy" and point at `/inventory`; it now reads "Explore".
-
-If you actually wanted the Audit view gone, deleting `pages/audit.js` and its two tab buttons is a clean revert.
+One behavior change came with the merge: "Empty locations" is now a single child lookup against the tree.
+It used to check `items` *and* the separate contents feed, which has been redundant since tools became
+`items` rows. Same results, one less dependency.
 
 ## What shipped
 
@@ -72,13 +72,18 @@ Where it differs from the brief's wording, and why:
    4 rooms and a nested location. It renders as a room-styled box one level in, which looks correct.
 4. **Data:** there is a container with id `test`, name `"Test "` (trailing space), no parent and no children.
    It shows up as a fifth box at the top level. Probably junk from testing — I did not delete it.
-5. `/api/items?id=<id>` deliberately excludes `type='item'` children. The explorer doesn't use that path
+5. **There is no way to delete a box anywhere in the app.** `pages/scan.js` has a complete, working delete
+   flow — `openDeleteItem()` (line 172), a cascade-vs-orphan modal, and a `DELETE /api/items?id=&cascade=`
+   call — but **nothing ever calls `openDeleteItem`**, so none of it is reachable. Wiring one button into the
+   scan page's action row restores it; the API and the modal need no changes. Left alone deliberately: adding
+   a delete button is a decision to make on purpose, not a drive-by fix.
+6. `/api/items?id=<id>` deliberately excludes `type='item'` children. The explorer doesn't use that path
    (it builds the tree from the unfiltered list endpoint), but anything else reading it sees containers only.
 
 ## Where things live
 
-- Branch `master`, commit `7be67a8` ("Replace /inventory with a spatial box explorer, move Audit to /audit"),
-  plus a follow-up commit for this note and the stale API comment. Pushed to `cmcgarr1/workshop-nfc`.
+- Branch `master`, pushed to `cmcgarr1/workshop-nfc`: `7be67a8` (explorer), `6236d57` (this note + a stale
+  API comment), `fb67793` (delete `/audit`, fold its feeds under the grid), `942b60e` (edit from the explorer).
 - No schema changes, no new env vars, no new dependencies. `OWNER_USER_ID` public-read logic untouched;
   the explorer reads through the same `apiFetch` path, so signed-out visitors get the read-only view.
 - Verified against the live DB (79 rows: 5 locations, 39 containers, 35 items) — matches the brief's numbers.
