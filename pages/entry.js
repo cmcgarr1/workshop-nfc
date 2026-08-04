@@ -73,7 +73,7 @@ export default function EntryPage() {
   }
 
   async function deleteEntry() {
-    if (!confirm('Delete this entry?')) return
+    if (!confirm(`Delete "${displayName}"?`)) return
     await apiFetch(`/api/contents?id=${id}`, { method: 'DELETE' })
     router.back()
   }
@@ -190,8 +190,12 @@ export default function EntryPage() {
                 <button className="btn-ghost save-btn" style={{ flex: 1 }} onClick={() => setEditing(true)}>
                   Edit
                 </button>
-                <button className="btn-danger" style={{ padding: '10px 14px' }} onClick={deleteEntry}>
-                  <IconTrash />
+                <button
+                  className="btn-danger"
+                  style={{ padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}
+                  onClick={deleteEntry}
+                >
+                  <IconTrash /> Delete
                 </button>
               </div>
             )}
