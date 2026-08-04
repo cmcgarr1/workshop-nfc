@@ -161,7 +161,7 @@ export default function NewTagPage() {
               style={{ textAlign: 'left' }}
             />
             {isDuplicate && (
-              <div className="form-hint" style={{ color: '#A32D2D' }}>
+              <div className="form-hint" style={{ color: 'var(--danger-text)' }}>
                 An item named "{name}" already exists — pick a different name
               </div>
             )}
@@ -170,7 +170,7 @@ export default function NewTagPage() {
           {inApp ? (
             <>
               {nfcStatus === 'error' && (
-                <div className="form-hint" style={{ color: '#A32D2D', marginBottom: 14 }}>
+                <div className="form-hint" style={{ color: 'var(--danger-text)', marginBottom: 14 }}>
                   {nfcError}
                 </div>
               )}

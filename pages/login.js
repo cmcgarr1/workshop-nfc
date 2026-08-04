@@ -93,7 +93,7 @@ export default function LoginPage() {
               </div>
 
               {error && (
-                <div className="form-hint" style={{ color: '#A32D2D', marginBottom: 10 }}>
+                <div className="form-hint" style={{ color: 'var(--danger-text)', marginBottom: 10 }}>
                   {error}
                 </div>
               )}

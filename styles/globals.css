@@ -17,6 +17,9 @@
   --teal-text: #085041;
   --blue-bg: #E6F1FB;
   --blue-text: #185FA5;
+  --danger-text: #A32D2D;
+  --danger-border: #F7C1C1;
+  --danger-bg: #FCEBEB;
   --radius: 10px;
   --radius-sm: 7px;
 }
@@ -39,6 +42,11 @@
     --teal-text: #9FE1CB;
     --blue-bg: #042C53;
     --blue-text: #85B7EB;
+    /* The light-mode pair is a dark red on white; unswapped it renders as
+       near-black on near-black and the button looks empty. */
+    --danger-text: #F0A0A0;
+    --danger-border: #7E3838;
+    --danger-bg: #3A1414;
   }
 }
 
@@ -70,7 +78,7 @@ button:active { transform: scale(0.98); }
 
 .btn-primary { background: var(--text); color: var(--bg); border-color: transparent; font-weight: 500; }
 .btn-ghost { background: transparent; border-color: var(--border2); color: var(--text2); }
-.btn-danger { background: transparent; border-color: #F7C1C1; color: #A32D2D; }
+.btn-danger { background: transparent; border-color: var(--danger-border); color: var(--danger-text); }
 /* The icons carry no intrinsic size, so any button holding one has to give it
    dimensions or the svg expands to fill the button. */
 .btn-danger svg { width: 18px; height: 18px; flex-shrink: 0; }
@@ -150,7 +158,7 @@ button:active { transform: scale(0.98); }
 .spinner { width: 28px; height: 28px; border: 2px solid var(--border); border-top-color: #7F77DD; border-radius: 50%; animation: spin 0.7s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-.error-box { background: #FCEBEB; border: 0.5px solid #F7C1C1; border-radius: var(--radius); padding: 16px; text-align: center; color: #791F1F; font-size: 14px; margin-top: 20px; }
+.error-box { background: var(--danger-bg); border: 0.5px solid var(--danger-border); border-radius: var(--radius); padding: 16px; text-align: center; color: var(--danger-text); font-size: 14px; margin-top: 20px; }
 
 .inventory-link { display: flex; align-items: center; justify-content: space-between; padding: 13px 14px; border: 0.5px solid var(--border); border-radius: var(--radius-sm); font-size: 14px; color: var(--text2); margin-top: 10px; cursor: pointer; }
 .inventory-link:hover { background: var(--bg2); }
