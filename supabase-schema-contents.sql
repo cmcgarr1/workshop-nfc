@@ -31,6 +31,12 @@ create trigger contents_updated_at
 
 alter table contents enable row level security;
 
+-- SECURITY: no "Allow all" policy, and no anon/authenticated grants.
+-- The anon key ships in the browser bundle, so granting it DML here means
+-- granting it to anyone who loads the site — that combination let the whole
+-- inventory be read and rewritten straight through PostgREST, bypassing the
+-- authorization in pages/api/*. All data access goes through those routes
+-- with the service_role key, which bypasses RLS, so service_role is the only
+-- role that needs anything. RLS enabled with no policies = deny by default.
 drop policy if exists "Allow all" on contents;
-create policy "Allow all" on contents
-  for all using (true) with check (true);
+grant select, insert, update, delete on contents to service_role;

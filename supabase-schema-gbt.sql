@@ -28,14 +28,14 @@ create trigger items_updated_at
 -- RLS enable (safe to rerun)
 alter table items enable row level security;
 
--- Policy creation is *not* automatically idempotent in Postgres.
--- So drop the policy if it exists, then recreate it.
+-- SECURITY: no "Allow all" policy, and no anon/authenticated grants.
+-- The anon key ships in the browser bundle, so granting it DML here means
+-- granting it to anyone who loads the site — that combination let the whole
+-- inventory be read and rewritten straight through PostgREST, bypassing the
+-- authorization in pages/api/*. All data access goes through those routes
+-- with the service_role key, which bypasses RLS, so service_role is the only
+-- role that needs anything. RLS enabled with no policies = deny by default.
 drop policy if exists "Allow all" on items;
-
-create policy "Allow all" on items
-  for all
-  using (true)
-  with check (true);
 
 -- Table-level grants (safe to rerun)
 -- RLS policies only take effect if the underlying Postgres role
@@ -43,7 +43,7 @@ create policy "Allow all" on items
 -- migration/integration tools) create tables without auto-granting
 -- these to Supabase's standard API roles, which causes
 -- "permission denied for table items" even with RLS configured correctly.
-grant select, insert, update, delete on items to anon, authenticated, service_role;
+grant select, insert, update, delete on items to service_role;
 
 -- Seed data (safe to rerun)
 insert into items (id, name, type, parent_id, notes) values

@@ -24,12 +24,17 @@ create trigger items_updated_at
   before update on items
   for each row execute function update_updated_at();
 
--- Allow public read/write (fine for a personal workshop app)
--- For a shared/multi-user workshop, add auth instead
 alter table items enable row level security;
 
-create policy "Allow all" on items
-  for all using (true) with check (true);
+-- SECURITY: no "Allow all" policy, and no anon/authenticated grants.
+-- The anon key ships in the browser bundle, so granting it DML here means
+-- granting it to anyone who loads the site — that combination let the whole
+-- inventory be read and rewritten straight through PostgREST, bypassing the
+-- authorization in pages/api/*. All data access goes through those routes
+-- with the service_role key, which bypasses RLS, so service_role is the only
+-- role that needs anything. RLS enabled with no policies = deny by default.
+drop policy if exists "Allow all" on items;
+grant select, insert, update, delete on items to service_role;
 
 -- Seed some example data (optional - delete if you want a clean start)
 insert into items (id, name, type, parent_id, notes) values

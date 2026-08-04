@@ -13,4 +13,4 @@ alter table items add column if not exists tag_written_at timestamptz;
 -- Matches the grants already applied to items (see supabase-schema-gbt.sql)
 -- — without this, the API's service-role client gets "permission denied
 -- for table" even with RLS configured.
-grant select, insert, update, delete on items to anon, authenticated, service_role;
+grant select, insert, update, delete on items to service_role;

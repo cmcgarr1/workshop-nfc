@@ -30,19 +30,21 @@ create table if not exists content_categories (
 alter table categories enable row level security;
 alter table content_categories enable row level security;
 
+-- SECURITY: no "Allow all" policy, and no anon/authenticated grants.
+-- The anon key ships in the browser bundle, so granting it DML here means
+-- granting it to anyone who loads the site — that combination let the whole
+-- inventory be read and rewritten straight through PostgREST, bypassing the
+-- authorization in pages/api/*. All data access goes through those routes
+-- with the service_role key, which bypasses RLS, so service_role is the only
+-- role that needs anything. RLS enabled with no policies = deny by default.
 drop policy if exists "Allow all" on categories;
-create policy "Allow all" on categories
-  for all using (true) with check (true);
-
 drop policy if exists "Allow all" on content_categories;
-create policy "Allow all" on content_categories
-  for all using (true) with check (true);
 
 -- Matches the grants already applied to items/contents (see
 -- supabase-schema-gbt.sql) — without these, the API's service-role
 -- client gets "permission denied for table" even with RLS configured.
-grant select, insert, update, delete on categories to anon, authenticated, service_role;
-grant select, insert, update, delete on content_categories to anon, authenticated, service_role;
+grant select, insert, update, delete on categories to service_role;
+grant select, insert, update, delete on content_categories to service_role;
 
 -- Backfill: turn every existing contents.category string into a real
 -- category row, one per distinct (user, name). Safe to rerun --
