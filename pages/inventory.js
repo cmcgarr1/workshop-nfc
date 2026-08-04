@@ -521,23 +521,36 @@ export default function InventoryPage() {
               </div>
             </div>
 
-            {/* The tools in this box, the way the scan page lists them. The
-                sub-containers are already the boxes in the grid above. */}
-            {boxes.some(b => b.type === 'item') && (
+            {/* Everything in this box, listed the way the scan page lists it:
+                sub-locations and containers first showing their type, then
+                tools showing their categories. It repeats the grid above on
+                purpose — the card should read the same here as it does after
+                a tag scan, whatever the box happens to hold. */}
+            {boxes.length > 0 && (
               <div className="level-card-contents">
                 <div className="section-label">Contents</div>
-                {boxes.filter(b => b.type === 'item').map(tool => (
-                  <div
-                    key={tool.id}
-                    className="level-card-tool"
-                    onClick={() => router.push(`/entry?id=${encodeURIComponent(tool.id)}`)}
-                  >
-                    <span className="level-card-tool-name">{tool.name || 'Untitled'}</span>
-                    <span className="level-card-tool-cats">
-                      {(categoriesById[tool.id] || []).join(', ') || '—'}
-                    </span>
-                  </div>
-                ))}
+                {[
+                  ...boxes.filter(b => b.type !== 'item'),
+                  ...boxes.filter(b => b.type === 'item')
+                ].map(row => {
+                  const isTool = row.type === 'item'
+                  return (
+                    <div
+                      key={row.id}
+                      className="level-card-tool"
+                      onClick={() => router.push(
+                        `${isTool ? '/entry' : '/scan'}?id=${encodeURIComponent(row.id)}`
+                      )}
+                    >
+                      <span className="level-card-tool-name">{row.name || 'Untitled'}</span>
+                      <span className="level-card-tool-cats">
+                        {isTool
+                          ? ((categoriesById[row.id] || []).join(', ') || '—')
+                          : (row.type === 'location' ? 'Location' : 'Container')}
+                      </span>
+                    </div>
+                  )
+                })}
               </div>
             )}
           </div>
