@@ -449,7 +449,13 @@ export default function InventoryPage() {
             the grid. Once you're inside a box they aren't — what you want is
             that box, so it takes their place. */}
         {!loading && current && (
-          <div className="level-card card">
+          // Deliberately the same trading card the scan page shows, so landing
+          // here by drilling in looks like landing here by scanning the tag.
+          // Editing still lives on /scan — Details is the way through.
+          <div
+            className="level-card card"
+            style={{ border: `2px solid ${current.type === 'location' ? 'var(--blue-text)' : 'var(--purple-border)'}` }}
+          >
             {current.photo_url && (
               <a
                 href={current.photo_url}
@@ -463,22 +469,28 @@ export default function InventoryPage() {
             )}
 
             <div className="item-head">
-              <div className={`item-icon${current.type === 'location' ? ' loc' : ''}`}>
-                {current.type === 'location' ? <IconDoor /> : <IconPackage />}
-              </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div className="item-name">{current.name}</div>
-                <div className="inv-item-sub">{current.type === 'location' ? 'Location' : 'Container'}</div>
+                <div
+                  className="level-card-type"
+                  style={{ color: current.type === 'location' ? 'var(--blue-text)' : 'var(--purple-text)' }}
+                >
+                  {current.type === 'location' ? 'Location' : 'Container'}
+                </div>
+                <div className="item-name-lg">{current.name}</div>
               </div>
               <button
                 className="btn-ghost"
-                style={{ padding: '6px 12px', fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}
+                style={{ padding: '6px 12px', fontSize: 12, display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}
                 onClick={() => router.push(`/scan?id=${encodeURIComponent(current.id)}`)}
               >
                 {loggedIn ? <IconEdit /> : <IconArrowRight />}
                 {loggedIn ? 'Edit' : 'Details'}
               </button>
             </div>
+
+            {trail.length > 1 && (
+              <div className="level-card-path">{trail.map(n => n.name).join(' / ')}</div>
+            )}
 
             <div className="meta">
               <div className="meta-row">
@@ -508,6 +520,26 @@ export default function InventoryPage() {
                 <span className="meta-value">{fmtRelative(current.created_at)}</span>
               </div>
             </div>
+
+            {/* The tools in this box, the way the scan page lists them. The
+                sub-containers are already the boxes in the grid above. */}
+            {boxes.some(b => b.type === 'item') && (
+              <div className="level-card-contents">
+                <div className="section-label">Contents</div>
+                {boxes.filter(b => b.type === 'item').map(tool => (
+                  <div
+                    key={tool.id}
+                    className="level-card-tool"
+                    onClick={() => router.push(`/entry?id=${encodeURIComponent(tool.id)}`)}
+                  >
+                    <span className="level-card-tool-name">{tool.name || 'Untitled'}</span>
+                    <span className="level-card-tool-cats">
+                      {(categoriesById[tool.id] || []).join(', ') || '—'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
