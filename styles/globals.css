@@ -327,3 +327,12 @@ button:active { transform: scale(0.98); }
 .level-card-photo { display: block; border-radius: var(--radius-sm); padding: 6px; margin-bottom: 14px; }
 .level-card-photo img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; display: block; border-radius: 4px; }
 .level-card .item-head { margin-bottom: 8px; flex-wrap: nowrap; }
+
+/* Shown where the edit controls would be when signed out, so a read-only
+   page explains itself instead of just looking inert. */
+.signed-out-hint {
+  margin-top: 16px; padding: 10px 12px;
+  border: 0.5px dashed var(--border2); border-radius: var(--radius-sm);
+  font-size: 13px; color: var(--text2); text-align: center; cursor: pointer;
+}
+.signed-out-hint:hover { color: var(--text); border-color: var(--text3); }

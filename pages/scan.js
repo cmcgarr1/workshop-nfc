@@ -512,6 +512,15 @@ export default function ScanPage() {
                       ) : null}
                     </div>
 
+                    {/* Signed out, every control on this page is hidden at
+                        once, which just looks like a page you can't do
+                        anything on. Say why, where the buttons would be. */}
+                    {!loggedIn && (
+                      <div className="signed-out-hint" onClick={() => router.push('/login')}>
+                        Sign in to edit this {item.type === 'location' ? 'location' : 'container'}
+                      </div>
+                    )}
+
                     {view === 'edit' && (
                       <>
                         <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>

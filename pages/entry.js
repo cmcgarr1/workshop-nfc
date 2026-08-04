@@ -185,6 +185,12 @@ export default function EntryPage() {
               </div>
             </div>
 
+            {!loggedIn && (
+              <div className="signed-out-hint" onClick={() => router.push('/login')}>
+                Sign in to edit this item
+              </div>
+            )}
+
             {loggedIn && (
               <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
                 <button className="btn-ghost save-btn" style={{ flex: 1 }} onClick={() => setEditing(true)}>
