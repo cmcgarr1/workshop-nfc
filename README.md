@@ -26,9 +26,9 @@ Scan an NFC tag → open the item record on your phone. Assign boxes to shelves,
 2. Go to [vercel.com](https://vercel.com) → Import project → select your repo
 3. Add environment variables in Vercel dashboard:
    ```
-   NEXT_PUBLIC_SUPABASE_URL      = https://xxxx.supabase.co
-   NEXT_PUBLIC_SUPABASE_ANON_KEY = eyJ...
-   SUPABASE_SERVICE_KEY          = eyJ...
+   SUPABASE_URL              = https://xxxx.supabase.co   (project_db since 2026-08-22)
+   SUPABASE_SERVICE_ROLE_KEY = sb_secret_...
+   OWNER_USER_ID             = <auth user uuid whose inventory this is>
    ```
 4. Deploy — Vercel gives you a URL like `your-workshop.vercel.app`
 

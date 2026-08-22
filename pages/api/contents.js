@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto'
-import { supabase, getRequestContext } from '../../lib/supabaseServer'
+import { supabase, getRequestContext, TABLES, PHOTO_BUCKET, signPhotoUrls } from '../../lib/supabaseServer'
 import { buildItemsById, pathString, contentPathString } from '../../lib/itemPath'
 
 // Tools live as `items` rows with type='item' (see the 2026-07-28 unification
@@ -29,14 +29,14 @@ function reshape(row) {
 
 async function fetchCategoryMap(userId, itemIds) {
   let q = supabase
-    .from('item_categories')
-    .select('item_id, categories(name)')
+    .from(TABLES.itemCategories)
+    .select('item_id, nfc_categories(name)')
     .eq('user_id', userId)
   if (itemIds) q = q.in('item_id', itemIds)
   const { data } = await q
   const map = {}
   ;(data || []).forEach(row => {
-    const name = row.categories?.name
+    const name = row.nfc_categories?.name
     if (!name) return
     if (!map[row.item_id]) map[row.item_id] = []
     map[row.item_id].push(name)
@@ -50,7 +50,7 @@ async function findOrCreateCategoryIds(userId, names) {
   const clean = [...new Set((names || []).map(n => (n || '').trim()).filter(Boolean))]
   if (!clean.length) return []
 
-  const { data: existing } = await supabase.from('categories').select('id, name').eq('user_id', userId)
+  const { data: existing } = await supabase.from(TABLES.categories).select('id, name').eq('user_id', userId)
   const byLower = new Map((existing || []).map(c => [c.name.toLowerCase(), c.id]))
 
   const ids = []
@@ -61,7 +61,7 @@ async function findOrCreateCategoryIds(userId, names) {
     else toInsert.push({ name, user_id: userId })
   }
   if (toInsert.length) {
-    const { data: inserted, error } = await supabase.from('categories').insert(toInsert).select('id, name')
+    const { data: inserted, error } = await supabase.from(TABLES.categories).insert(toInsert).select('id, name')
     if (error) throw error
     ids.push(...(inserted || []).map(c => c.id))
   }
@@ -70,10 +70,10 @@ async function findOrCreateCategoryIds(userId, names) {
 
 async function replaceItemCategories(userId, itemId, names) {
   const cleanNames = (names || []).map(n => (n || '').trim()).filter(Boolean)
-  await supabase.from('item_categories').delete().eq('item_id', itemId).eq('user_id', userId)
+  await supabase.from(TABLES.itemCategories).delete().eq('item_id', itemId).eq('user_id', userId)
   const catIds = await findOrCreateCategoryIds(userId, cleanNames)
   if (catIds.length) {
-    await supabase.from('item_categories').insert(catIds.map(category_id => ({ item_id: itemId, category_id, user_id: userId })))
+    await supabase.from(TABLES.itemCategories).insert(catIds.map(category_id => ({ item_id: itemId, category_id, user_id: userId })))
   }
   return cleanNames
 }
@@ -89,7 +89,7 @@ export default async function handler(req, res) {
 
     if (categories_only) {
       const { data, error } = await supabase
-        .from('categories')
+        .from(TABLES.categories)
         .select('name')
         .eq('user_id', userId)
         .order('name')
@@ -97,13 +97,13 @@ export default async function handler(req, res) {
       return res.json({ categories: (data || []).map(c => c.name) })
     }
 
-    let q = supabase.from('items').select('*').eq('user_id', userId).eq('type', 'item').order('created_at', { ascending: true })
+    let q = supabase.from(TABLES.items).select('*').eq('user_id', userId).eq('type', 'item').order('created_at', { ascending: true })
     if (parent_item_id) q = q.eq('parent_id', parent_item_id)
 
     const { data, error } = await q
     if (error) return res.status(500).json({ error: error.message })
 
-    const { data: allItems } = await supabase.from('items').select('id, name, parent_id').eq('user_id', userId)
+    const { data: allItems } = await supabase.from(TABLES.items).select('id, name, parent_id').eq('user_id', userId)
     const itemsById = buildItemsById(allItems)
     const categoryMap = await fetchCategoryMap(userId, (data || []).map(r => r.id))
 
@@ -134,7 +134,7 @@ export default async function handler(req, res) {
 
     if (parent_item_id) {
       const { data: parent } = await supabase
-        .from('items')
+        .from(TABLES.items)
         .select('id')
         .eq('id', parent_item_id)
         .eq('user_id', userId)
@@ -143,7 +143,7 @@ export default async function handler(req, res) {
     }
 
     const { data, error } = await supabase
-      .from('items')
+      .from(TABLES.items)
       .insert([{
         id: randomUUID(),
         type: 'item',
@@ -161,7 +161,7 @@ export default async function handler(req, res) {
 
     const catIds = await findOrCreateCategoryIds(userId, cleanCategories)
     if (catIds.length) {
-      await supabase.from('item_categories').insert(catIds.map(category_id => ({ item_id: data.id, category_id, user_id: userId })))
+      await supabase.from(TABLES.itemCategories).insert(catIds.map(category_id => ({ item_id: data.id, category_id, user_id: userId })))
     }
 
     return res.status(201).json({ content: { ...reshape(data), categories: cleanCategories } })
@@ -174,7 +174,7 @@ export default async function handler(req, res) {
 
     if (parent_item_id) {
       const { data: parent } = await supabase
-        .from('items')
+        .from(TABLES.items)
         .select('id')
         .eq('id', parent_item_id)
         .eq('user_id', userId)
@@ -188,7 +188,7 @@ export default async function handler(req, res) {
     if (parent_item_id !== undefined) updatePayload.parent_id = parent_item_id || null
 
     const { data, error } = await supabase
-      .from('items')
+      .from(TABLES.items)
       .update(updatePayload)
       .eq('id', id)
       .eq('user_id', userId)
@@ -209,7 +209,7 @@ export default async function handler(req, res) {
     const { id } = query
     if (!id) return res.status(400).json({ error: 'id required' })
 
-    const { error } = await supabase.from('items').delete().eq('id', id).eq('user_id', userId).eq('type', 'item')
+    const { error } = await supabase.from(TABLES.items).delete().eq('id', id).eq('user_id', userId).eq('type', 'item')
     if (error) return res.status(400).json({ error: error.message })
     return res.json({ ok: true })
   }

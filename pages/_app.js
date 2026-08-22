@@ -1,31 +1,22 @@
-import { useEffect, useState, createContext, useContext } from 'react'
+import { createContext, useContext } from 'react'
 import { useRouter } from 'next/router'
 import '../styles/globals.css'
-import { supabase } from '../lib/supabase'
 
-const AuthContext = createContext({ session: undefined })
+// Auth was removed when the backend merged into project_db (2026-08-22).
+// Pages still read `loggedIn` from this context to decide whether to show
+// edit controls; it is now always true.
+const AUTH = { session: null, loggedIn: true }
+const AuthContext = createContext(AUTH)
 export function useAuth() {
   return useContext(AuthContext)
 }
 
 export default function App({ Component, pageProps }) {
   const router = useRouter()
-  const [session, setSession] = useState(undefined)
-
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => setSession(data.session))
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, newSession) => {
-      setSession(newSession)
-    })
-    return () => listener.subscription.unsubscribe()
-  }, [])
-
-  const loggedIn = !!session
-  const isLogin = router.pathname === '/login'
 
   return (
-    <AuthContext.Provider value={{ session, loggedIn }}>
-      {session !== undefined && !isLogin && (
+    <AuthContext.Provider value={AUTH}>
+      {(
         <div style={{
           position: 'fixed', top: 0, left: 0, right: 0, zIndex: 50,
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -46,27 +37,6 @@ export default function App({ Component, pageProps }) {
               </svg>
             </div>
             <span style={{ fontWeight: 500, fontSize: 17, color: 'var(--text2)' }}>Workshop</span>
-          </div>
-
-          {/* Sign in / Sign out */}
-          <div style={{ pointerEvents: 'auto' }}>
-            {loggedIn ? (
-              <button
-                className="btn-ghost"
-                style={{ fontSize: 12, padding: '6px 10px', background: 'var(--bg)' }}
-                onClick={() => supabase.auth.signOut()}
-              >
-                Sign out
-              </button>
-            ) : (
-              <button
-                className="btn-ghost"
-                style={{ fontSize: 12, padding: '6px 10px', background: 'var(--bg)' }}
-                onClick={() => router.push('/login')}
-              >
-                Sign in to edit
-              </button>
-            )}
           </div>
         </div>
       )}

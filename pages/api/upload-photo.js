@@ -1,4 +1,4 @@
-import { supabase, getRequestContext } from '../../lib/supabaseServer'
+import { supabase, getRequestContext, TABLES, PHOTO_BUCKET, signPhotoUrls } from '../../lib/supabaseServer'
 import formidable from 'formidable'
 import fs from 'fs'
 import sharp from 'sharp'
@@ -35,7 +35,7 @@ export default async function handler(req, res) {
   if (!itemId || !file) return res.status(400).json({ error: 'item_id and photo required' })
 
   const { data: item } = await supabase
-    .from('items')
+    .from(TABLES.items)
     .select('id, photo_url')
     .eq('id', itemId)
     .eq('user_id', userId)
@@ -73,17 +73,16 @@ export default async function handler(req, res) {
   const path = `${userId}/${itemId}-${Date.now()}.jpg`
 
   const { error: uploadError } = await supabase.storage
-    .from('item-photos')
+    .from(PHOTO_BUCKET)
     .upload(path, outputBuffer, { contentType: 'image/jpeg', upsert: false })
 
   if (uploadError) return res.status(400).json({ error: uploadError.message })
 
-  const { data: pub } = supabase.storage.from('item-photos').getPublicUrl(path)
-  const photoUrl = pub.publicUrl
-
+  // The bucket is private: store the object path and let the API sign it
+  // on read (see signPhotoUrls in lib/supabaseServer).
   const { data: updated, error: updateError } = await supabase
-    .from('items')
-    .update({ photo_url: photoUrl })
+    .from(TABLES.items)
+    .update({ photo_url: path })
     .eq('id', itemId)
     .eq('user_id', userId)
     .select()
@@ -92,12 +91,12 @@ export default async function handler(req, res) {
   if (updateError) return res.status(400).json({ error: updateError.message })
 
   // Best-effort cleanup of the old photo, if any
-  if (item.photo_url) {
+  if (item.photo_url && item.photo_url !== path) {
     try {
-      const oldPath = item.photo_url.split('/item-photos/')[1]
-      if (oldPath) await supabase.storage.from('item-photos').remove([oldPath])
+      await supabase.storage.from(PHOTO_BUCKET).remove([item.photo_url])
     } catch {}
   }
 
+  await signPhotoUrls(updated)
   return res.json({ item: updated })
 }

@@ -1,4 +1,4 @@
-import { supabase, getRequestContext } from '../../lib/supabaseServer'
+import { supabase, getRequestContext, TABLES, PHOTO_BUCKET, signPhotoUrls } from '../../lib/supabaseServer'
 import { buildItemsById, pathString } from '../../lib/itemPath'
 
 export default async function handler(req, res) {
@@ -11,7 +11,7 @@ export default async function handler(req, res) {
     const { id } = query
     if (id) {
       const { data, error } = await supabase
-        .from('items')
+        .from(TABLES.items)
         .select('*')
         .eq('id', id)
         .eq('user_id', userId)
@@ -22,21 +22,23 @@ export default async function handler(req, res) {
       // this filter they'd show up twice (once here mislabeled "Container",
       // once correctly under Contents).
       const { data: children } = await supabase
-        .from('items')
+        .from(TABLES.items)
         .select('*')
         .eq('parent_id', id)
         .eq('user_id', userId)
         .neq('type', 'item')
-      const { data: allUserItems } = await supabase.from('items').select('id, name, parent_id').eq('user_id', userId)
+      const { data: allUserItems } = await supabase.from(TABLES.items).select('id, name, parent_id').eq('user_id', userId)
       const itemsById = buildItemsById(allUserItems)
+      await signPhotoUrls(data); await signPhotoUrls(children)
       return res.json({ item: data, children: children || [], canWrite, path: pathString(id, itemsById) })
     }
     const { data, error } = await supabase
-      .from('items')
+      .from(TABLES.items)
       .select('*')
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
     if (error) return res.status(500).json({ error: error.message })
+    await signPhotoUrls(data)
     return res.json({ items: data, canWrite })
   }
 
@@ -49,7 +51,7 @@ export default async function handler(req, res) {
 
     if (parent_id) {
       const { data: parent } = await supabase
-        .from('items')
+        .from(TABLES.items)
         .select('id')
         .eq('id', parent_id)
         .eq('user_id', userId)
@@ -58,7 +60,7 @@ export default async function handler(req, res) {
     }
 
     const { data, error } = await supabase
-      .from('items')
+      .from(TABLES.items)
       .insert([{ id, name, type, parent_id: parent_id || null, notes: notes || '', user_id: userId, tag_written_at: tag_written_at || null }])
       .select()
       .single()
@@ -72,7 +74,7 @@ export default async function handler(req, res) {
 
     if (parent_id) {
       const { data: parent } = await supabase
-        .from('items')
+        .from(TABLES.items)
         .select('id')
         .eq('id', parent_id)
         .eq('user_id', userId)
@@ -90,13 +92,14 @@ export default async function handler(req, res) {
     if (tag_written_at !== undefined) updatePayload.tag_written_at = tag_written_at || null
 
     const { data, error } = await supabase
-      .from('items')
+      .from(TABLES.items)
       .update(updatePayload)
       .eq('id', id)
       .eq('user_id', userId)
       .select()
       .single()
     if (error) return res.status(400).json({ error: error.message })
+    await signPhotoUrls(data)
     return res.json({ item: data })
   }
 
@@ -108,7 +111,7 @@ export default async function handler(req, res) {
       let frontier = [id]
       while (frontier.length) {
         const { data: kids } = await supabase
-          .from('items')
+          .from(TABLES.items)
           .select('id')
           .in('parent_id', frontier)
           .eq('user_id', userId)
@@ -121,13 +124,13 @@ export default async function handler(req, res) {
       // already collected them into idsToDelete along with any sub-locations/
       // containers — one delete covers everything, no separate contents
       // cleanup needed (that table is retired).
-      const { error } = await supabase.from('items').delete().in('id', idsToDelete).eq('user_id', userId)
+      const { error } = await supabase.from(TABLES.items).delete().in('id', idsToDelete).eq('user_id', userId)
       if (error) return res.status(400).json({ error: error.message })
       return res.json({ ok: true, deletedCount: idsToDelete.length })
     }
 
-    await supabase.from('items').update({ parent_id: null }).eq('parent_id', id).eq('user_id', userId)
-    const { error } = await supabase.from('items').delete().eq('id', id).eq('user_id', userId)
+    await supabase.from(TABLES.items).update({ parent_id: null }).eq('parent_id', id).eq('user_id', userId)
+    const { error } = await supabase.from(TABLES.items).delete().eq('id', id).eq('user_id', userId)
     if (error) return res.status(400).json({ error: error.message })
     return res.json({ ok: true })
   }
