@@ -117,6 +117,25 @@ export default function ScanPage() {
     showToast('Tag registered!')
   }
 
+  // Flips a container between "home" (back where it lives) and "out"
+  // (pulled off the shelf for an in-progress session) — what the nag script
+  // (scripts/nag-out-boxes.js) checks for. checked_out_at is set/cleared
+  // server-side, never sent from here.
+  async function toggleStatus() {
+    const next = item.status === 'out' ? 'home' : 'out'
+    setSaving(true)
+    const r = await apiFetch(`/api/items?id=${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: next })
+    })
+    const data = await r.json()
+    setSaving(false)
+    if (!r.ok) return alert(data.error)
+    setItem(data.item)
+    showToast(next === 'out' ? 'Marked out' : 'Marked home')
+  }
+
   async function saveEdit() {
     setSaving(true)
     const r = await apiFetch(`/api/items?id=${encodeURIComponent(id)}`, {
@@ -400,6 +419,9 @@ export default function ScanPage() {
                         {view !== 'edit' && (
                           <div style={{ fontSize: 11, fontWeight: 500, letterSpacing: '0.08em', textTransform: 'uppercase', color: item.type === 'location' ? 'var(--blue-text)' : 'var(--purple-text)', marginBottom: 4 }}>
                             {item.type === 'location' ? 'Location' : 'Container'}
+                            {item.type === 'container' && item.status === 'out' && (
+                              <span style={{ marginLeft: 8, color: 'var(--red-text, #c0392b)' }}>· OUT</span>
+                            )}
                           </div>
                         )}
                         {view === 'edit' ? (
@@ -443,6 +465,17 @@ export default function ScanPage() {
                             onChange={e => uploadPhoto(e.target.files?.[0])}
                           />
                         </label>
+                      )}
+
+                      {loggedIn && view !== 'edit' && item.type === 'container' && (
+                        <button
+                          className={`action-btn${item.status === 'out' ? ' primary' : ''}`}
+                          style={{ flexDirection: 'row', gap: 6, padding: '8px 12px', fontSize: 13, flexShrink: 0 }}
+                          disabled={saving}
+                          onClick={toggleStatus}
+                        >
+                          <IconTool /> {item.status === 'out' ? 'Mark home' : 'Mark out'}
+                        </button>
                       )}
 
                       {view === 'edit' && (

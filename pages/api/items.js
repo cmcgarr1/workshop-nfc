@@ -70,7 +70,7 @@ export default async function handler(req, res) {
 
   if (method === 'PATCH') {
     const { id } = query
-    const { name, type, parent_id, notes, tag_written_at } = body
+    const { name, type, parent_id, notes, tag_written_at, status } = body
 
     if (parent_id) {
       const { data: parent } = await supabase
@@ -82,14 +82,21 @@ export default async function handler(req, res) {
       if (!parent) return res.status(400).json({ error: 'Invalid parent location' })
     }
 
-    // parent_id and tag_written_at are only touched when explicitly present
-    // in the body — this route also serves lightweight single-field patches
-    // (e.g. the audit checklist's "mark as tagged" action), which must not
-    // blow away an unrelated field like parent_id by coercing a missing key
-    // to null.
+    // parent_id, tag_written_at and status are only touched when explicitly
+    // present in the body — this route also serves lightweight single-field
+    // patches (e.g. the audit checklist's "mark as tagged" action, the scan
+    // page's out/home toggle), which must not blow away an unrelated field
+    // like parent_id by coercing a missing key to null.
     const updatePayload = { name, type, notes }
     if (parent_id !== undefined) updatePayload.parent_id = parent_id || null
     if (tag_written_at !== undefined) updatePayload.tag_written_at = tag_written_at || null
+    if (status !== undefined) {
+      if (status !== 'home' && status !== 'out') return res.status(400).json({ error: 'status must be home or out' })
+      updatePayload.status = status
+      // checked_out_at is derived server-side from the status flip, never
+      // taken from the client, so it can't be back-dated or left stale.
+      updatePayload.checked_out_at = status === 'out' ? new Date().toISOString() : null
+    }
 
     const { data, error } = await supabase
       .from(TABLES.items)
